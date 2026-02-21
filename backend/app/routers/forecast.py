@@ -16,6 +16,7 @@ router = APIRouter(
 # ── Pydantic schemas (local, lightweight) ─────────────────────────────────────
 
 class ForecastConfigIn(BaseModel):
+    scenario_name: str = "base"
     base_period: Optional[date] = None
     num_periods: int = 3
     revenue_growth_pct: int = 500    # basis points: 500 = 5.00%
@@ -120,18 +121,20 @@ def _get_actuals(db: Session, company_id: str, period: date) -> dict:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/config", response_model=ForecastConfigOut)
-def get_forecast_config(company_id: str, db: Session = Depends(get_db)):
+def get_forecast_config(company_id: str, scenario: str = "base", db: Session = Depends(get_db)):
     config = db.query(models.ForecastConfig).filter(
-        models.ForecastConfig.company_id == company_id
+        models.ForecastConfig.company_id == company_id,
+        models.ForecastConfig.scenario_name == scenario
     ).first()
     if not config:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No forecast config found. Save one first.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No {scenario} forecast config found. Save one first.")
     return config
 
 @router.put("/config", response_model=ForecastConfigOut)
 def upsert_forecast_config(company_id: str, payload: ForecastConfigIn, db: Session = Depends(get_db)):
     config = db.query(models.ForecastConfig).filter(
-        models.ForecastConfig.company_id == company_id
+        models.ForecastConfig.company_id == company_id,
+        models.ForecastConfig.scenario_name == payload.scenario_name
     ).first()
     if config:
         for field, value in payload.model_dump().items():
@@ -144,10 +147,11 @@ def upsert_forecast_config(company_id: str, payload: ForecastConfigIn, db: Sessi
     return config
 
 @router.get("/statements")
-def get_forecast_statements(company_id: str, db: Session = Depends(get_db)):
+def get_forecast_statements(company_id: str, scenario: str = "base", db: Session = Depends(get_db)):
     """Compute projected 3-statement model from saved ForecastConfig."""
     config = db.query(models.ForecastConfig).filter(
-        models.ForecastConfig.company_id == company_id
+        models.ForecastConfig.company_id == company_id,
+        models.ForecastConfig.scenario_name == scenario
     ).first()
     if not config or not config.base_period:
         raise HTTPException(status_code=400, detail="No forecast config or base_period set.")

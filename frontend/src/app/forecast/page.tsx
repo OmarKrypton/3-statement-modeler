@@ -89,6 +89,7 @@ export default function ForecastPage() {
     const queryClient = useQueryClient();
     const [openSection, setOpenSection] = useState<"is" | "cf" | null>("is");
     const [hasRun, setHasRun] = useState(false);
+    const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
 
     const { data: periods = [] } = useQuery<string[]>({
         queryKey: ["periods", ACME_CORP_ID],
@@ -107,16 +108,34 @@ export default function ForecastPage() {
         wc_pct_of_revenue: 1000,
     });
 
-    // Try loading existing config
-    const { data: savedConfig } = useQuery({
-        queryKey: ["forecast-config", ACME_CORP_ID],
-        queryFn: () => getForecastConfig(ACME_CORP_ID),
+    // Try loading existing config for the current scenario
+    const { data: savedConfig, isFetching: isFetchingConfig } = useQuery({
+        queryKey: ["forecast-config", ACME_CORP_ID, scenario],
+        queryFn: () => getForecastConfig(ACME_CORP_ID, scenario),
         retry: false,
     });
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (savedConfig) setCfg(savedConfig);
-    }, [savedConfig]);
+        if (savedConfig) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setCfg(savedConfig);
+        } else {
+            // Reset to defaults if no config exists for this scenario (except keep base_period)
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setCfg(prev => ({
+                ...prev,
+                scenario_name: scenario,
+                revenue_growth_pct: 500,
+                cogs_pct_of_revenue: 6000,
+                opex_growth_pct: 300,
+                tax_rate_pct: 2100,
+                capex_cents: 0,
+                da_cents: 0,
+                wc_pct_of_revenue: 1000,
+            }));
+            // We clear hasRun so the user knows they need to hit Run Forecast for the new scenario
+            setHasRun(false);
+        }
+    }, [savedConfig, scenario]);
 
     // Auto-select latest period as base
     useEffect(() => {
@@ -127,13 +146,13 @@ export default function ForecastPage() {
     }, [periods, cfg.base_period]);
 
     const saveMutation = useMutation({
-        mutationFn: () => saveForecastConfig(ACME_CORP_ID, cfg),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["forecast-config", ACME_CORP_ID] }),
+        mutationFn: () => saveForecastConfig(ACME_CORP_ID, { ...cfg, scenario_name: scenario }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["forecast-config", ACME_CORP_ID, scenario] }),
     });
 
     const { data: forecast, refetch: runForecast, isFetching, error: forecastError } = useQuery({
-        queryKey: ["forecast-statements", ACME_CORP_ID],
-        queryFn: () => getForecastStatements(ACME_CORP_ID),
+        queryKey: ["forecast-statements", ACME_CORP_ID, scenario],
+        queryFn: () => getForecastStatements(ACME_CORP_ID, scenario),
         enabled: false,
         retry: false,
     });
@@ -177,6 +196,19 @@ export default function ForecastPage() {
                     </div>
 
                     <div className="p-5 flex flex-col gap-5">
+                        {/* Scenario Toggle */}
+                        <div className="flex bg-white/5 rounded-lg border border-border p-1">
+                            {(["base", "bull", "bear"] as const).map(s => (
+                                <button
+                                    key={s}
+                                    onClick={() => setScenario(s)}
+                                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md capitalize transition-all ${scenario === s ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* Base period */}
                         <div className="flex flex-col gap-1">
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Base Period</label>

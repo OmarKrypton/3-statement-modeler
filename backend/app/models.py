@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, BigInteger, Boolean, ForeignKey, Date, DateTime, Enum
+from sqlalchemy import Column, String, Integer, BigInteger, Boolean, ForeignKey, Date, DateTime, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -122,9 +122,13 @@ class TrialBalanceEntry(Base):
 
 class ForecastConfig(Base):
     __tablename__ = "forecast_configs"
+    __table_args__ = (
+        UniqueConstraint("company_id", "scenario_name", name="uix_company_scenario"),
+    )
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    company_id = Column(String, ForeignKey("companies.id"), unique=True, nullable=False)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    scenario_name = Column(String, nullable=False, default="base")
 
     # Base period to project from (must match an existing ReportingPeriod)
     base_period = Column(Date, nullable=True)

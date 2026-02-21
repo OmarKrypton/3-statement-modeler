@@ -91,6 +91,7 @@ export const deletePeriod = async (companyId: string, periodDate: string) => {
 
 // Forecast Engine
 export interface ForecastConfigPayload {
+    scenario_name?: string;
     base_period: string | null;
     num_periods: number;
     revenue_growth_pct: number;
@@ -102,8 +103,8 @@ export interface ForecastConfigPayload {
     wc_pct_of_revenue: number;
 }
 
-export const getForecastConfig = async (companyId: string) => {
-    const { data } = await api.get(`/companies/${companyId}/forecast/config`);
+export const getForecastConfig = async (companyId: string, scenario: string = "base") => {
+    const { data } = await api.get(`/companies/${companyId}/forecast/config?scenario=${scenario}`);
     return data;
 };
 
@@ -112,7 +113,7 @@ export const saveForecastConfig = async (companyId: string, config: ForecastConf
     return data;
 };
 
-export const getForecastStatements = async (companyId: string) => {
-    const { data } = await api.get(`/companies/${companyId}/forecast/statements`);
+export const getForecastStatements = async (companyId: string, scenario: string = "base") => {
+    const { data } = await api.get(`/companies/${companyId}/forecast/statements?scenario=${scenario}`);
     return data;
 };
