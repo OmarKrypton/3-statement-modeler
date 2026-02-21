@@ -83,3 +83,8 @@ export const getCashFlow = async (companyId: string, periods: string[]) => {
     const { data } = await api.get(`/companies/${companyId}/statements/cash-flow?${buildPeriodsQuery(periods)}`);
     return data;
 };
+
+export const deletePeriod = async (companyId: string, periodDate: string) => {
+    const { data } = await api.delete(`/companies/${companyId}/periods/${periodDate}`);
+    return data;
+};
