@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="3-Statement Modeler Logo" width="200" style="border-radius:20px;"/>
+  <img src="logo_3s.png" alt="3-Statement Modeler Logo" width="200" style="border-radius:20px;"/>
 </p>
 
 ---
