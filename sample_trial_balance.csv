@@ -1,0 +1,11 @@
+account_number,account_name,balance
+1000,Cash,5000000
+1100,Accounts Receivable,2000000
+1200,Inventory,3000000
+2000,Accounts Payable,-1500000
+2500,Long-Term Debt,-4000000
+3000,Common Stock,-1000000
+3500,Retained Earnings,-1500000
+4000,Sales Revenue,-5000000
+5000,Cost of Goods Sold,2000000
+6000,Operating Expenses,1000000
