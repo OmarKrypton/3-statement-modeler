@@ -1,4 +1,10 @@
-# Automated 3-Statement Modeler
+<p align="center">
+  <img src="logo.png" alt="3-Statement Modeler Logo" width="200" style="border-radius:20px;"/>
+</p>
+
+---
+
+<h1 align="center">Automated 3-Statement Modeler</h1>
 
 A full-stack web application designed to automate the generation of financial statements from raw Trial Balance extracts. 
 
