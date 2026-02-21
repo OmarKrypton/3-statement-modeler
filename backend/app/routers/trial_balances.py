@@ -53,12 +53,9 @@ async def upload_trial_balance(
                 detail=f"Invalid CSV format: {str(e)}"
             )
 
-    # Hard-coded rule: Trial balance sum must equal 0 (Debits + Credits = 0)
-    if total_balance != 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Trial balance is out of balance by {total_balance} cents."
-        )
+    # Validation: Trial balance should sum to 0. We allow it but surface a warning.
+    imbalance_cents = total_balance
+    is_balanced = total_balance == 0
 
     # 1. Ensure Reporting Period exists
     period = db.query(models.ReportingPeriod).filter(
@@ -102,4 +99,7 @@ async def upload_trial_balance(
         db.add(tb_entry)
 
     db.commit()
-    return {"status": "success", "message": f"Imported {len(entries)} trial balance accounts for period {period_date}"}
+    response = {"status": "success", "message": f"Imported {len(entries)} trial balance accounts for period {period_date}", "is_balanced": is_balanced}
+    if not is_balanced:
+        response["warning"] = f"Trial balance is out of balance by {imbalance_cents} cents (${imbalance_cents / 100:,.2f}). This imbalance will be reflected in the Balance Sheet."
+    return response

@@ -14,15 +14,18 @@ export function TbUploader() {
     const [file, setFile] = useState<File | null>(null);
     const [periodDate, setPeriodDate] = useState("2024-01-31");
     const [errorText, setErrorText] = useState("");
+    const [warningText, setWarningText] = useState("");
 
     const uploadMutation = useMutation({
         mutationFn: (fileToUpload: File) => uploadTrialBalance(ACME_CORP_ID, periodDate, fileToUpload),
-        onSuccess: () => {
+        onSuccess: (data: { status: string; message: string; is_balanced: boolean; warning?: string }) => {
             setFile(null);
             setErrorText("");
+            setWarningText(data.warning || "");
         },
         onError: (err: AxiosError<{ detail: string }>) => {
             setErrorText(err.response?.data?.detail || "An error occurred during upload.");
+            setWarningText("");
         }
     });
 
@@ -112,10 +115,24 @@ export function TbUploader() {
                 </div>
             )}
 
-            {uploadMutation.isSuccess && (
+            {warningText && (
+                <div className="mt-4 p-3 rounded-md bg-amber-500/20 border border-amber-500/50 flex items-start">
+                    <AlertCircle className="h-5 w-5 text-amber-400 mr-2 shrink-0" />
+                    <p className="text-sm text-amber-200">{warningText}</p>
+                </div>
+            )}
+
+            {uploadMutation.isSuccess && !warningText && (
                 <div className="mt-4 p-3 rounded-md bg-emerald-500/20 border border-emerald-500/50 flex items-start">
                     <CheckCircle className="h-5 w-5 text-emerald-400 mr-2 shrink-0" />
-                    <p className="text-sm text-emerald-400">Trial balance uploaded and balanced successfully!</p>
+                    <p className="text-sm text-emerald-400">Trial balance uploaded successfully!</p>
+                </div>
+            )}
+
+            {uploadMutation.isSuccess && warningText && (
+                <div className="mt-4 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-start">
+                    <CheckCircle className="h-5 w-5 text-emerald-500 mr-2 shrink-0" />
+                    <p className="text-sm text-emerald-500">Uploaded. The imbalance above will appear as a warning in the Balance Sheet.</p>
                 </div>
             )}
 
