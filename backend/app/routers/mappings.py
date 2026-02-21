@@ -28,7 +28,9 @@ def get_unmapped_accounts(company_id: str, skip: int = 0, limit: int = 100, db: 
         models.CompanyAccount.company_id == company_id,
         models.CompanyAccount.is_active == True,
         models.AccountMapping.id == None
-    ).group_by(models.CompanyAccount.id).offset(skip).limit(limit).all()
+    ).group_by(models.CompanyAccount.id).having(
+        func.count(models.TrialBalanceEntry.id) > 0
+    ).offset(skip).limit(limit).all()
 
     return [
         schemas.CompanyAccountWithBalance(

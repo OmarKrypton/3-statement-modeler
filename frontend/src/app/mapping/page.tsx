@@ -122,8 +122,10 @@ export default function MappingPage() {
                                 const absDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(acc.total_balance) / 100);
                                 return (
                                     <div key={acc.id} className={`relative group p-4 rounded-lg border transition-all ${isMappedLocally ? 'border-primary/50 bg-primary/10' : 'border-border bg-white/5 hover:border-white/20'}`}>
-                                        {/* Balance Tooltip */}
-                                        <div className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-10">
+                                        {/* Balance Tooltip — rendered BELOW card to avoid clipping by scroll container header */}
+                                        <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 translate-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-10">
+                                            {/* Arrow pointing up */}
+                                            <div className="w-2 h-2 bg-[#1e1e2e] border-t border-l border-border rotate-45 mx-auto mb-[-4px] relative z-20"></div>
                                             <div className="bg-[#1e1e2e] border border-border rounded-lg shadow-xl px-3 py-2 text-xs whitespace-nowrap flex items-center gap-2">
                                                 <span className="text-muted-foreground">Total Balance</span>
                                                 <span className={`font-mono font-bold ${isDebit ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -133,8 +135,6 @@ export default function MappingPage() {
                                                     {isDebit ? 'DEBIT' : 'CREDIT'}
                                                 </span>
                                             </div>
-                                            {/* Arrow */}
-                                            <div className="w-2 h-2 bg-[#1e1e2e] border-b border-r border-border rotate-45 mx-auto -mt-1"></div>
                                         </div>
 
                                         <div className="flex justify-between items-start">
