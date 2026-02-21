@@ -60,17 +60,26 @@ export const resetMappings = async (companyId: string) => {
 };
 
 // Statement Generation
-export const getIncomeStatement = async (companyId: string, start: string, end: string) => {
-    const { data } = await api.get(`/companies/${companyId}/statements/income-statement?period_start=${start}&period_end=${end}`);
+export const getPeriods = async (companyId: string) => {
+    const { data } = await api.get(`/companies/${companyId}/periods`);
     return data;
 };
 
-export const getBalanceSheet = async (companyId: string, date: string) => {
-    const { data } = await api.get(`/companies/${companyId}/statements/balance-sheet?period_date=${date}`);
+const buildPeriodsQuery = (periods: string[]) => {
+    return periods.map(p => `periods=${p}`).join("&");
+};
+
+export const getIncomeStatement = async (companyId: string, periods: string[]) => {
+    const { data } = await api.get(`/companies/${companyId}/statements/income-statement?${buildPeriodsQuery(periods)}`);
     return data;
 };
 
-export const getCashFlow = async (companyId: string, start: string, end: string) => {
-    const { data } = await api.get(`/companies/${companyId}/statements/cash-flow?period_start=${start}&period_end=${end}`);
+export const getBalanceSheet = async (companyId: string, periods: string[]) => {
+    const { data } = await api.get(`/companies/${companyId}/statements/balance-sheet?${buildPeriodsQuery(periods)}`);
+    return data;
+};
+
+export const getCashFlow = async (companyId: string, periods: string[]) => {
+    const { data } = await api.get(`/companies/${companyId}/statements/cash-flow?${buildPeriodsQuery(periods)}`);
     return data;
 };

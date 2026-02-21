@@ -1,33 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getIncomeStatement, getBalanceSheet, getCashFlow } from "@/lib/api";
+import { getPeriods, getIncomeStatement, getBalanceSheet, getCashFlow } from "@/lib/api";
 import { StatementResult, BalanceSheetResult, CashFlowResult } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle } from "lucide-react";
+import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle, CheckSquare, Square } from "lucide-react";
 
 // Hardcoded for MVP
 const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
 
 export default function StatementsPage() {
-    const [startPeriod, setStartPeriod] = useState("2024-01-01");
-    const [endPeriod, setEndPeriod] = useState("2024-12-31");
+    const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
 
-    const { data: incomeStatement, isLoading, isError } = useQuery<StatementResult>({
-        queryKey: ["income-statement", ACME_CORP_ID, startPeriod, endPeriod],
-        queryFn: () => getIncomeStatement(ACME_CORP_ID, startPeriod, endPeriod),
+    const { data: availablePeriods, isLoading: isPeriodsLoading } = useQuery<string[]>({
+        queryKey: ["periods", ACME_CORP_ID],
+        queryFn: () => getPeriods(ACME_CORP_ID),
     });
 
-    const { data: balanceSheet, isLoading: isBsLoading, isError: isBsError } = useQuery<BalanceSheetResult>({
-        queryKey: ["balance-sheet", ACME_CORP_ID, endPeriod],
-        queryFn: () => getBalanceSheet(ACME_CORP_ID, endPeriod),
+    // Auto-select latest period if none selected and data loaded
+    useEffect(() => {
+        if (availablePeriods && availablePeriods.length > 0 && selectedPeriods.length === 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+            setSelectedPeriods([availablePeriods[0]]);
+        }
+    }, [availablePeriods, selectedPeriods.length]);
+
+    const togglePeriod = (p: string) => {
+        setSelectedPeriods(prev =>
+            prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+        );
+    };
+
+    const hasSelection = selectedPeriods.length > 0;
+
+    const { data: incomeStatement = [], isLoading, isError } = useQuery<StatementResult[]>({
+        queryKey: ["income-statement", ACME_CORP_ID, selectedPeriods],
+        queryFn: () => getIncomeStatement(ACME_CORP_ID, selectedPeriods),
+        enabled: hasSelection,
     });
 
-    const { data: cashFlow, isLoading: isCfLoading, isError: isCfError } = useQuery<CashFlowResult>({
-        queryKey: ["cash-flow", ACME_CORP_ID, startPeriod, endPeriod],
-        queryFn: () => getCashFlow(ACME_CORP_ID, startPeriod, endPeriod),
+    const { data: balanceSheet = [], isLoading: isBsLoading, isError: isBsError } = useQuery<BalanceSheetResult[]>({
+        queryKey: ["balance-sheet", ACME_CORP_ID, selectedPeriods],
+        queryFn: () => getBalanceSheet(ACME_CORP_ID, selectedPeriods),
+        enabled: hasSelection,
     });
+
+    const { data: cashFlow = [], isLoading: isCfLoading, isError: isCfError } = useQuery<CashFlowResult[]>({
+        queryKey: ["cash-flow", ACME_CORP_ID, selectedPeriods],
+        queryFn: () => getCashFlow(ACME_CORP_ID, selectedPeriods),
+        enabled: hasSelection,
+    });
+
+    const hasUnmapped = balanceSheet.some(bs => bs.unmapped_balance_cents !== 0);
 
     return (
         <div className="flex flex-col gap-6 py-8 animate-in slide-in-from-bottom-4 duration-500">
@@ -35,15 +60,15 @@ export default function StatementsPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Financial Statements</h1>
                     <p className="mt-2 text-muted-foreground w-3/4">
-                        Aggregated, real-time reporting based entirely on your mapped Trial Balance entries.
+                        Comparative, real-time reporting based entirely on your mapped Trial Balance entries. Select multiple periods to track performance over time.
                     </p>
                 </div>
             </div>
 
             {/* Control Panel */}
-            <div className="glass-card rounded-xl p-6 border-border mt-4 flex gap-8 items-end">
-                <div className="flex-1">
-                    <label className="block text-sm font-medium text-muted-foreground mb-1 flex items-center">
+            <div className="glass-card rounded-xl p-6 border-border mt-4 flex gap-8 items-start">
+                <div className="w-1/4">
+                    <label className="block text-sm font-medium text-muted-foreground mb-2 flex items-center">
                         <Building2 className="w-4 h-4 mr-2" /> Company
                     </label>
                     <div className="px-3 py-2 bg-white/5 border border-border rounded-md text-foreground cursor-not-allowed">
@@ -51,240 +76,276 @@ export default function StatementsPage() {
                     </div>
                 </div>
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-muted-foreground mb-1 flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-2" /> Period Start
+                    <label className="block text-sm font-medium text-muted-foreground mb-2 flex items-center">
+                        <CalendarIcon className="w-4 h-4 mr-2" /> Select Reporting Periods
                     </label>
-                    <input
-                        type="date"
-                        value={startPeriod}
-                        onChange={(e) => setStartPeriod(e.target.value)}
-                        className="w-full px-3 py-2 bg-black/40 border border-border rounded-md text-foreground focus:ring-primary focus:border-primary"
-                    />
-                </div>
-                <div className="flex-1">
-                    <label className="block text-sm font-medium text-muted-foreground mb-1 flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-2" /> Period End
-                    </label>
-                    <input
-                        type="date"
-                        value={endPeriod}
-                        onChange={(e) => setEndPeriod(e.target.value)}
-                        className="w-full px-3 py-2 bg-black/40 border border-border rounded-md text-foreground focus:ring-primary focus:border-primary"
-                    />
+                    <div className="flex flex-wrap gap-2">
+                        {isPeriodsLoading ? (
+                            <span className="text-sm text-muted-foreground">Loading periods...</span>
+                        ) : availablePeriods?.length ? (
+                            availablePeriods.map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => togglePeriod(p)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm transition-colors ${selectedPeriods.includes(p) ? 'bg-primary/20 border-primary/50 text-primary-foreground shadow-sm' : 'bg-white/5 border-border text-muted-foreground hover:bg-white/10'}`}
+                                >
+                                    {selectedPeriods.includes(p) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                                    {p}
+                                </button>
+                            ))
+                        ) : (
+                            <span className="text-sm text-muted-foreground">No trial balances found.</span>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Statement Displaay Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
-
-                {/* Income Statement */}
-                <div className="glass-card rounded-xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border bg-gradient-to-r from-primary/10 flex items-center">
-                        <FileText className="w-5 h-5 text-primary mr-2" />
-                        <h3 className="font-bold text-lg text-foreground">Income Statement</h3>
-                    </div>
-
-                    <div className="p-6">
-                        {isLoading ? (
-                            <div className="animate-pulse space-y-4">
-                                <div className="h-4 bg-white/10 rounded w-full"></div>
-                                <div className="h-4 bg-white/10 rounded w-full"></div>
-                                <div className="h-4 bg-white/10 rounded w-3/4"></div>
-                            </div>
-                        ) : isError ? (
-                            <div className="text-destructive">Failed to load statement logic. Have you uploaded and mapped an entry?</div>
-                        ) : (
-                            <div className="space-y-4">
-
-                                {/* Revenues Section */}
-                                <div>
-                                    <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Revenues</h4>
-                                    <div className="flex justify-between items-center py-2 px-2 hover:bg-white/5 rounded transition-colors">
-                                        <span className="text-foreground">Total Revenues</span>
-                                        <span className="font-mono text-emerald-400">{formatCurrency(incomeStatement?.total_revenues_cents || 0)}</span>
-                                    </div>
-                                </div>
-
-                                {/* Expenses Section */}
-                                <div className="pt-4">
-                                    <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Expenses</h4>
-                                    <div className="flex justify-between items-center py-2 px-2 hover:bg-white/5 rounded transition-colors">
-                                        <span className="text-foreground">Total Operating Expenses</span>
-                                        <span className="font-mono text-destructive-foreground">{formatCurrency(incomeStatement?.total_expenses_cents || 0)}</span>
-                                    </div>
-                                </div>
-
-                                {/* Net Income Divider */}
-                                <div className="my-6 border-b-2 border-primary/50"></div>
-
-                                <div className="flex justify-between items-center bg-primary/10 p-4 rounded-lg border border-primary/30">
-                                    <span className="text-lg font-bold text-primary-foreground">Net Income</span>
-                                    <span className="text-xl font-bold font-mono text-primary-foreground">
-                                        {formatCurrency(incomeStatement?.net_income_cents || 0)}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+            {/* Empty State Warning */}
+            {!hasSelection && !isPeriodsLoading && (
+                <div className="p-8 text-center glass-card rounded-xl border border-border mt-4">
+                    <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-bold text-foreground mb-2">No Periods Selected</h3>
+                    <p className="text-muted-foreground">Please select at least one reporting period from the control panel to generate financial statements.</p>
                 </div>
+            )}
 
-                {/* Balance Sheet */}
-                <div className="glass-card rounded-xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border bg-gradient-to-r from-accent/10 flex items-center justify-between">
-                        <div className="flex items-center">
-                            <Scale className="w-5 h-5 text-accent mr-2" />
-                            <h3 className="font-bold text-lg text-foreground">Balance Sheet</h3>
+            {/* Statement Display Grid */}
+            {hasSelection && (
+                <div className="flex flex-col gap-8 mt-4">
+
+                    {/* Income Statement */}
+                    <div className="glass-card rounded-xl border border-border overflow-hidden">
+                        <div className="p-4 border-b border-border bg-gradient-to-r from-primary/10 flex items-center">
+                            <FileText className="w-5 h-5 text-primary mr-2" />
+                            <h3 className="font-bold text-lg text-foreground">Income Statement</h3>
                         </div>
-                        {balanceSheet?.is_balanced_equation && (
-                            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30">Balanced</span>
-                        )}
+
+                        <div className="px-1 overflow-x-auto">
+                            {isLoading ? (
+                                <div className="p-6 animate-pulse space-y-4">
+                                    <div className="h-4 bg-white/10 rounded w-full"></div>
+                                    <div className="h-4 bg-white/10 rounded w-full"></div>
+                                </div>
+                            ) : isError ? (
+                                <div className="p-6 text-destructive">Failed to load statement logic.</div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-border text-muted-foreground">
+                                            <th className="py-4 px-6 font-semibold text-left w-1/3">Metric</th>
+                                            {incomeStatement?.map(s => (
+                                                <th key={s.period} className="py-4 px-6 font-semibold text-right">{s.period}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/50">
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-4 px-6 text-foreground font-medium">Total Revenues</td>
+                                            {incomeStatement?.map(s => (
+                                                <td key={s.period} className="py-4 px-6 text-right font-mono text-emerald-400">{formatCurrency(s.total_revenues_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-4 px-6 text-foreground font-medium">Total Operating Expenses</td>
+                                            {incomeStatement?.map(s => (
+                                                <td key={s.period} className="py-4 px-6 text-right font-mono text-destructive-foreground">{formatCurrency(s.total_expenses_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="bg-primary/5 border-t border-primary/20">
+                                            <td className="py-5 px-6 font-bold text-primary-foreground text-base">Net Income</td>
+                                            {incomeStatement?.map(s => (
+                                                <td key={s.period} className="py-5 px-6 text-right font-mono font-bold text-primary-foreground text-base">{formatCurrency(s.net_income_cents)}</td>
+                                            ))}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="p-6">
-                        {isBsLoading ? (
-                            <div className="animate-pulse space-y-4">
-                                <div className="h-4 bg-white/10 rounded w-full"></div>
-                                <div className="h-4 bg-white/10 rounded w-full"></div>
-                                <div className="h-4 bg-white/10 rounded w-3/4"></div>
+                    {/* Balance Sheet */}
+                    <div className="glass-card rounded-xl border border-border overflow-hidden">
+                        <div className="p-4 border-b border-border bg-gradient-to-r from-accent/10 flex items-center justify-between">
+                            <div className="flex items-center">
+                                <Scale className="w-5 h-5 text-accent mr-2" />
+                                <h3 className="font-bold text-lg text-foreground">Balance Sheet</h3>
                             </div>
-                        ) : isBsError ? (
-                            <div className="text-destructive">Failed to load statement logic.</div>
-                        ) : (
-                            <div className="space-y-4">
+                        </div>
 
-                                {/* Assets Section */}
+                        <div className="px-1 overflow-x-auto">
+                            {isBsLoading ? (
+                                <div className="p-6 animate-pulse space-y-4">
+                                    <div className="h-4 bg-white/10 rounded w-full"></div>
+                                </div>
+                            ) : isBsError ? (
+                                <div className="p-6 text-destructive">Failed to load statement logic.</div>
+                            ) : (
                                 <div>
-                                    <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Assets</h4>
-                                    <div className="flex justify-between items-center py-2 px-2 hover:bg-white/5 rounded transition-colors">
-                                        <span className="text-foreground">Total Assets</span>
-                                        <span className="font-mono text-foreground">{formatCurrency(balanceSheet?.total_assets_cents || 0)}</span>
-                                    </div>
-                                </div>
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-border text-muted-foreground">
+                                                <th className="py-4 px-6 font-semibold text-left w-1/3">Metric</th>
+                                                {balanceSheet?.map(s => (
+                                                    <th key={s.period_date} className="py-4 px-6 font-semibold text-right">
+                                                        <div className="flex flex-col items-end">
+                                                            <span>{s.period_date}</span>
+                                                            {s.is_balanced_equation ? (
+                                                                <span className="text-[10px] uppercase bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 mt-1 rounded border border-emerald-500/30">Balanced</span>
+                                                            ) : (
+                                                                <span className="text-[10px] uppercase bg-amber-500/20 text-amber-400 px-1.5 py-0.5 mt-1 rounded border border-amber-500/30">Imbalanced</span>
+                                                            )}
+                                                        </div>
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/50">
+                                            <tr className="hover:bg-white/5 transition-colors">
+                                                <td className="py-4 px-6 text-foreground font-medium">Total Assets</td>
+                                                {balanceSheet?.map(s => (
+                                                    <td key={s.period_date} className="py-4 px-6 text-right font-mono text-foreground">{formatCurrency(s.total_assets_cents)}</td>
+                                                ))}
+                                            </tr>
+                                            <tr className="hover:bg-white/5 transition-colors">
+                                                <td className="py-4 px-6 text-muted-foreground font-medium pl-10">Total Liabilities</td>
+                                                {balanceSheet?.map(s => (
+                                                    <td key={s.period_date} className="py-4 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.total_liabilities_cents)}</td>
+                                                ))}
+                                            </tr>
+                                            <tr className="hover:bg-white/5 transition-colors">
+                                                <td className="py-4 px-6 text-muted-foreground font-medium pl-10">Total Equity (Incl. YTD Net Income)</td>
+                                                {balanceSheet?.map(s => (
+                                                    <td key={s.period_date} className="py-4 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.total_equity_cents)}</td>
+                                                ))}
+                                            </tr>
+                                            <tr className="bg-accent/5 border-t border-accent/20">
+                                                <td className="py-5 px-6 font-bold text-accent-foreground text-base">Total Liab + Equity</td>
+                                                {balanceSheet?.map(s => (
+                                                    <td key={s.period_date} className="py-5 px-6 text-right font-mono font-bold text-accent-foreground text-base">{formatCurrency(s.total_liabilities_cents + s.total_equity_cents)}</td>
+                                                ))}
+                                            </tr>
+                                        </tbody>
+                                    </table>
 
-                                {/* Liabilities Section */}
-                                <div className="pt-4">
-                                    <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Liabilities & Equity</h4>
-                                    <div className="flex justify-between items-center py-2 px-2 hover:bg-white/5 rounded transition-colors text-sm">
-                                        <span className="text-muted-foreground">Total Liabilities</span>
-                                        <span className="font-mono text-muted-foreground">{formatCurrency(balanceSheet?.total_liabilities_cents || 0)}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-2 px-2 hover:bg-white/5 rounded transition-colors text-sm">
-                                        <span className="text-muted-foreground">Total Equity (Incl. YTD Net Income)</span>
-                                        <span className="font-mono text-muted-foreground">{formatCurrency(balanceSheet?.total_equity_cents || 0)}</span>
-                                    </div>
-                                </div>
-
-                                {/* Balance Equation Divider */}
-                                <div className="my-6 border-b-2 border-accent/50"></div>
-
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-accent/10 p-4 rounded-lg border border-accent/30">
-                                        <span className="text-lg font-bold text-accent-foreground">Total Liab + Equity</span>
-                                        <span className="text-xl font-bold font-mono text-accent-foreground">
-                                            {formatCurrency((balanceSheet?.total_liabilities_cents || 0) + (balanceSheet?.total_equity_cents || 0))}
-                                        </span>
-                                    </div>
-
-                                    {/* Unmapped Warning */}
-                                    {balanceSheet?.unmapped_balance_cents !== 0 && (
-                                        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm flex gap-3">
+                                    {/* Unmapped Warning Display */}
+                                    {hasUnmapped && (
+                                        <div className="p-4 mx-4 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm flex gap-3">
                                             <AlertCircle className="w-5 h-5 shrink-0" />
                                             <div>
-                                                <p className="font-bold mb-1">Out of Balance: {formatCurrency(balanceSheet?.unmapped_balance_cents || 0)}</p>
-                                                <p className="opacity-80">
-                                                    You have unmapped accounts in your Trial Balance.
-                                                    Please visit the <strong>Account Mapping Engine</strong> to standardize all accounts.
-                                                </p>
+                                                <p className="font-bold mb-1">Out of Balance</p>
+                                                <p className="opacity-80 mb-2">You have unmapped accounts in your Trial Balance. Please visit the Mapping Engine to standardize all accounts.</p>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                    {balanceSheet.filter(bs => bs.unmapped_balance_cents !== 0).map(bs => (
+                                                        <div key={bs.period_date} className="bg-black/20 p-2 rounded text-xs border border-amber-500/20">
+                                                            <span className="block opacity-70 mb-1">{bs.period_date}</span>
+                                                            <span className="font-mono font-bold">{formatCurrency(bs.unmapped_balance_cents)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
+
+                    {/* Statement of Cash Flows */}
+                    <div className="glass-card rounded-xl border border-border overflow-hidden lg:col-span-2">
+                        <div className="p-4 border-b border-border bg-gradient-to-r from-emerald-500/10 flex items-center">
+                            <TrendingUp className="w-5 h-5 text-emerald-400 mr-2" />
+                            <h3 className="font-bold text-lg text-foreground">Statement of Cash Flows (Indirect)</h3>
+                        </div>
+
+                        <div className="px-1 overflow-x-auto">
+                            {isCfLoading ? (
+                                <div className="p-6 animate-pulse space-y-4">
+                                    <div className="h-4 bg-white/10 rounded w-full"></div>
+                                </div>
+                            ) : isCfError ? (
+                                <div className="p-6 text-destructive">Failed to load statement logic.</div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-border text-muted-foreground">
+                                            <th className="py-4 px-6 font-semibold text-left w-1/3">Metric</th>
+                                            {cashFlow?.map(s => (
+                                                <th key={s.period} className="py-4 px-6 font-semibold text-right">{s.period}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/50">
+                                        <tr className="bg-black/20">
+                                            <td colSpan={cashFlow.length + 1} className="py-2 px-6 font-bold text-xs uppercase tracking-wider text-muted-foreground">Operating Activities</td>
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-3 px-6 text-foreground">Net Income</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.net_income_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-3 px-6 text-foreground">Depreciation & Non-Cash</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.non_cash_adjustments_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-3 px-6 text-foreground">Changes in Working Capital</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.operating_wc_delta_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="bg-emerald-500/5">
+                                            <td className="py-3 px-6 font-semibold text-emerald-400">Net Cash from Ops</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono font-semibold text-emerald-400">{formatCurrency(s.net_cash_from_operations_cents)}</td>
+                                            ))}
+                                        </tr>
+
+                                        <tr className="bg-black/20">
+                                            <td colSpan={cashFlow.length + 1} className="py-2 px-6 font-bold text-xs uppercase tracking-wider text-muted-foreground border-t border-border">Investing & Financing</td>
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-3 px-6 text-foreground">Net Cash from Investing</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono text-emerald-400">{formatCurrency(s.net_cash_from_investing_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-3 px-6 text-foreground">Net Cash from Financing</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono text-emerald-400">{formatCurrency(s.net_cash_from_financing_cents)}</td>
+                                            ))}
+                                        </tr>
+
+                                        <tr className="bg-emerald-500/10 border-t-2 border-emerald-500/30">
+                                            <td className="py-4 px-6 font-bold text-emerald-400 uppercase tracking-wider text-xs">Net Change in Cash</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-4 px-6 text-right font-mono font-bold text-emerald-400">{formatCurrency(s.net_change_in_cash_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="hover:bg-white/5 transition-colors">
+                                            <td className="py-3 px-6 text-muted-foreground uppercase tracking-wider text-xs font-semibold">Beginning Cash Balance</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.beginning_cash_cents)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr className="bg-emerald-500/20 border-t border-emerald-500/40">
+                                            <td className="py-5 px-6 font-bold text-emerald-300 uppercase tracking-wider text-sm shadow-sm">Ending Cash Balance</td>
+                                            {cashFlow?.map(s => (
+                                                <td key={s.period} className="py-5 px-6 text-right font-mono font-bold text-emerald-300 text-lg drop-shadow-sm">{formatCurrency(s.ending_cash_cents)}</td>
+                                            ))}
+                                        </tr>
+
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
-
-                {/* Statement of Cash Flows */}
-                <div className="glass-card rounded-xl border border-border overflow-hidden lg:col-span-2">
-                    <div className="p-4 border-b border-border bg-gradient-to-r from-emerald-500/10 flex items-center">
-                        <TrendingUp className="w-5 h-5 text-emerald-400 mr-2" />
-                        <h3 className="font-bold text-lg text-foreground">Statement of Cash Flows (Indirect)</h3>
-                    </div>
-
-                    <div className="p-6">
-                        {isCfLoading ? (
-                            <div className="animate-pulse space-y-4">
-                                <div className="h-4 bg-white/10 rounded w-full"></div>
-                                <div className="h-4 bg-white/10 rounded w-full"></div>
-                            </div>
-                        ) : isCfError ? (
-                            <div className="text-destructive">Failed to load statement logic.</div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-                                {/* Operating */}
-                                <div>
-                                    <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Operating Activities</h4>
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between items-center py-1 px-2 hover:bg-white/5 rounded text-sm">
-                                            <span className="text-muted-foreground">Net Income</span>
-                                            <span className="font-mono">{formatCurrency(cashFlow?.net_income_cents || 0)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-1 px-2 hover:bg-white/5 rounded text-sm">
-                                            <span className="text-muted-foreground">Depreciation & Non-Cash</span>
-                                            <span className="font-mono">{formatCurrency(cashFlow?.non_cash_adjustments_cents || 0)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-1 px-2 hover:bg-white/5 rounded text-sm mb-2">
-                                            <span className="text-muted-foreground">Changes in Working Capital</span>
-                                            <span className="font-mono">{formatCurrency(cashFlow?.operating_wc_delta_cents || 0)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-2 px-2 bg-emerald-500/10 rounded border border-emerald-500/20 font-medium">
-                                            <span className="text-emerald-400">Net Cash from Ops</span>
-                                            <span className="font-mono text-emerald-400">{formatCurrency(cashFlow?.net_cash_from_operations_cents || 0)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Investing / Financing */}
-                                <div className="space-y-6">
-                                    <div>
-                                        <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Investing Activities</h4>
-                                        <div className="flex justify-between items-center py-2 px-2 bg-emerald-500/10 rounded border border-emerald-500/20 font-medium text-sm">
-                                            <span className="text-emerald-400">Net Cash from Investing</span>
-                                            <span className="font-mono text-emerald-400">{formatCurrency(cashFlow?.net_cash_from_investing_cents || 0)}</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 className="border-b border-border font-semibold text-muted-foreground text-sm uppercase mb-2 pb-1 tracking-wider">Financing Activities</h4>
-                                        <div className="flex justify-between items-center py-2 px-2 bg-emerald-500/10 rounded border border-emerald-500/20 font-medium text-sm">
-                                            <span className="text-emerald-400">Net Cash from Financing</span>
-                                            <span className="font-mono text-emerald-400">{formatCurrency(cashFlow?.net_cash_from_financing_cents || 0)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Final Cash Yield */}
-                                <div className="flex flex-col justify-center p-6 bg-white/5 rounded-xl border border-border space-y-4">
-                                    <div className="flex justify-between items-center text-sm border-b border-white/5 pb-3">
-                                        <span className="text-muted-foreground uppercase tracking-wider font-semibold">Net Change in Cash</span>
-                                        <span className="font-mono text-foreground font-bold text-lg">{formatCurrency(cashFlow?.net_change_in_cash_cents || 0)}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-sm border-b border-white/5 pb-3">
-                                        <span className="text-muted-foreground uppercase tracking-wider font-semibold">Beginning Cash Balance</span>
-                                        <span className="font-mono text-muted-foreground">{formatCurrency(cashFlow?.beginning_cash_cents || 0)}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center bg-emerald-500/10 p-4 rounded-lg border border-emerald-500/30 shadow-sm shadow-emerald-500/5 mt-2">
-                                        <span className="font-bold text-emerald-400 uppercase tracking-wider text-sm">Ending Cash Balance</span>
-                                        <span className="font-mono text-2xl font-bold text-emerald-400 drop-shadow-sm">{formatCurrency(cashFlow?.ending_cash_cents || 0)}</span>
-                                    </div>
-                                </div>
-
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-            </div>
+            )}
         </div>
     );
 }

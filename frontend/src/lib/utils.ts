@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(cents: number): str {
+export function formatCurrency(cents: number): string {
   const value = cents / 100;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
