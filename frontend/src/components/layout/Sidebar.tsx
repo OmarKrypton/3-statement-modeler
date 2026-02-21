@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calculator, ArrowLeftRight, FileSpreadsheet, LayoutDashboard, Settings } from "lucide-react";
+import { Calculator, ArrowLeftRight, FileSpreadsheet, LayoutDashboard, Settings, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
     { name: "Trial Balance", href: "/trial-balance", icon: FileSpreadsheet },
     { name: "Account Mapping", href: "/mapping", icon: ArrowLeftRight },
     { name: "Financial Statements", href: "/statements", icon: Calculator },
+    { name: "Forecast", href: "/forecast", icon: TrendingUp },
 ];
 
 export function Sidebar() {

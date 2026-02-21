@@ -88,3 +88,31 @@ export const deletePeriod = async (companyId: string, periodDate: string) => {
     const { data } = await api.delete(`/companies/${companyId}/periods/${periodDate}`);
     return data;
 };
+
+// Forecast Engine
+export interface ForecastConfigPayload {
+    base_period: string | null;
+    num_periods: number;
+    revenue_growth_pct: number;
+    cogs_pct_of_revenue: number;
+    opex_growth_pct: number;
+    tax_rate_pct: number;
+    capex_cents: number;
+    da_cents: number;
+    wc_pct_of_revenue: number;
+}
+
+export const getForecastConfig = async (companyId: string) => {
+    const { data } = await api.get(`/companies/${companyId}/forecast/config`);
+    return data;
+};
+
+export const saveForecastConfig = async (companyId: string, config: ForecastConfigPayload) => {
+    const { data } = await api.put(`/companies/${companyId}/forecast/config`, config);
+    return data;
+};
+
+export const getForecastStatements = async (companyId: string) => {
+    const { data } = await api.get(`/companies/${companyId}/forecast/statements`);
+    return data;
+};

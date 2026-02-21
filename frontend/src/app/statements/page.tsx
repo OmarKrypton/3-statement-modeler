@@ -21,7 +21,7 @@ export default function StatementsPage() {
     // Auto-select latest period if none selected and data loaded
     useEffect(() => {
         if (availablePeriods && availablePeriods.length > 0 && selectedPeriods.length === 0) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedPeriods([availablePeriods[0]]);
         }
     }, [availablePeriods, selectedPeriods.length]);

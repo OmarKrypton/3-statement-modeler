@@ -118,3 +118,30 @@ class TrialBalanceEntry(Base):
 
     reporting_period = relationship("ReportingPeriod", back_populates="balances")
     company_account = relationship("CompanyAccount", back_populates="balances")
+
+
+class ForecastConfig(Base):
+    __tablename__ = "forecast_configs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    company_id = Column(String, ForeignKey("companies.id"), unique=True, nullable=False)
+
+    # Base period to project from (must match an existing ReportingPeriod)
+    base_period = Column(Date, nullable=True)
+    # Number of future periods to project (1–12)
+    num_periods = Column(Integer, nullable=False, default=3)
+
+    # Income Statement drivers
+    revenue_growth_pct = Column(Integer, nullable=False, default=500)   # stored as basis points (500 = 5.00%)
+    cogs_pct_of_revenue = Column(Integer, nullable=False, default=6000)  # 6000 = 60.00%
+    opex_growth_pct = Column(Integer, nullable=False, default=300)       # 300  = 3.00%
+    tax_rate_pct = Column(Integer, nullable=False, default=2100)         # 2100 = 21.00%
+
+    # Cash Flow drivers (stored in cents)
+    capex_cents = Column(BigInteger, nullable=False, default=0)
+    da_cents = Column(BigInteger, nullable=False, default=0)
+
+    # Working capital driver
+    wc_pct_of_revenue = Column(Integer, nullable=False, default=1000)   # 1000 = 10.00%
+
+    company = relationship("Company")

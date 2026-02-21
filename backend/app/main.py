@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from . import models
 from .database import engine
-from .routers import companies, master_coa, trial_balances, mappings, statements, periods
+from .routers import companies, master_coa, trial_balances, mappings, statements, periods, forecast
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
@@ -28,6 +28,7 @@ app.include_router(trial_balances.router)
 app.include_router(mappings.router)
 app.include_router(statements.router)
 app.include_router(periods.router)
+app.include_router(forecast.router)
 
 @app.get("/")
 def read_root():
