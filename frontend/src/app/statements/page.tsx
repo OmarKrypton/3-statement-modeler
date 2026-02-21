@@ -186,9 +186,9 @@ export default function StatementsPage() {
                                             <tr className="border-b border-border text-muted-foreground">
                                                 <th className="py-4 px-6 font-semibold text-left w-1/3">Metric</th>
                                                 {balanceSheet?.map(s => (
-                                                    <th key={s.period_date} className="py-4 px-6 font-semibold text-right">
+                                                    <th key={s.period} className="py-4 px-6 font-semibold text-right">
                                                         <div className="flex flex-col items-end">
-                                                            <span>{s.period_date}</span>
+                                                            <span>{s.period}</span>
                                                             {s.is_balanced_equation ? (
                                                                 <span className="text-[10px] uppercase bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 mt-1 rounded border border-emerald-500/30">Balanced</span>
                                                             ) : (
@@ -203,25 +203,25 @@ export default function StatementsPage() {
                                             <tr className="hover:bg-white/5 transition-colors">
                                                 <td className="py-4 px-6 text-foreground font-medium">Total Assets</td>
                                                 {balanceSheet?.map(s => (
-                                                    <td key={s.period_date} className="py-4 px-6 text-right font-mono text-foreground">{formatCurrency(s.total_assets_cents)}</td>
+                                                    <td key={s.period} className="py-4 px-6 text-right font-mono text-foreground">{formatCurrency(s.total_assets_cents)}</td>
                                                 ))}
                                             </tr>
                                             <tr className="hover:bg-white/5 transition-colors">
                                                 <td className="py-4 px-6 text-muted-foreground font-medium pl-10">Total Liabilities</td>
                                                 {balanceSheet?.map(s => (
-                                                    <td key={s.period_date} className="py-4 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.total_liabilities_cents)}</td>
+                                                    <td key={s.period} className="py-4 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.total_liabilities_cents)}</td>
                                                 ))}
                                             </tr>
                                             <tr className="hover:bg-white/5 transition-colors">
                                                 <td className="py-4 px-6 text-muted-foreground font-medium pl-10">Total Equity (Incl. YTD Net Income)</td>
                                                 {balanceSheet?.map(s => (
-                                                    <td key={s.period_date} className="py-4 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.total_equity_cents)}</td>
+                                                    <td key={s.period} className="py-4 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.total_equity_cents)}</td>
                                                 ))}
                                             </tr>
                                             <tr className="bg-accent/5 border-t border-accent/20">
                                                 <td className="py-5 px-6 font-bold text-accent-foreground text-base">Total Liab + Equity</td>
                                                 {balanceSheet?.map(s => (
-                                                    <td key={s.period_date} className="py-5 px-6 text-right font-mono font-bold text-accent-foreground text-base">{formatCurrency(s.total_liabilities_cents + s.total_equity_cents)}</td>
+                                                    <td key={s.period} className="py-5 px-6 text-right font-mono font-bold text-accent-foreground text-base">{formatCurrency(s.total_liabilities_cents + s.total_equity_cents)}</td>
                                                 ))}
                                             </tr>
                                         </tbody>
@@ -236,8 +236,8 @@ export default function StatementsPage() {
                                                 <p className="opacity-80 mb-2">You have unmapped accounts in your Trial Balance. Please visit the Mapping Engine to standardize all accounts.</p>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                                     {balanceSheet.filter(bs => bs.unmapped_balance_cents !== 0).map(bs => (
-                                                        <div key={bs.period_date} className="bg-black/20 p-2 rounded text-xs border border-amber-500/20">
-                                                            <span className="block opacity-70 mb-1">{bs.period_date}</span>
+                                                        <div key={bs.period} className="bg-black/20 p-2 rounded text-xs border border-amber-500/20">
+                                                            <span className="block opacity-70 mb-1">{bs.period}</span>
                                                             <span className="font-mono font-bold">{formatCurrency(bs.unmapped_balance_cents)}</span>
                                                         </div>
                                                     ))}

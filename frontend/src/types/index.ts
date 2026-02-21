@@ -46,7 +46,7 @@ export interface StatementResult {
 }
 
 export interface BalanceSheetResult {
-    period_date: string;
+    period: string;
     total_assets_cents: number;
     total_liabilities_cents: number;
     total_equity_cents: number;
