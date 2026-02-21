@@ -36,6 +36,7 @@ export interface CompanyAccount {
     import_account_number: string;
     import_account_name: string;
     is_active: boolean;
+    total_balance: number;
 }
 
 export interface StatementResult {

@@ -118,12 +118,33 @@ export default function MappingPage() {
                         <div className="overflow-y-auto p-4 space-y-3">
                             {unmappedAccounts.map(acc => {
                                 const isMappedLocally = !!localMappings[acc.id];
+                                const isDebit = acc.total_balance >= 0;
+                                const absDisplay = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(acc.total_balance) / 100);
                                 return (
-                                    <div key={acc.id} className={`p-4 rounded-lg border transition-all ${isMappedLocally ? 'border-primary/50 bg-primary/10' : 'border-border bg-white/5 hover:border-white/20'}`}>
+                                    <div key={acc.id} className={`relative group p-4 rounded-lg border transition-all ${isMappedLocally ? 'border-primary/50 bg-primary/10' : 'border-border bg-white/5 hover:border-white/20'}`}>
+                                        {/* Balance Tooltip */}
+                                        <div className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-10">
+                                            <div className="bg-[#1e1e2e] border border-border rounded-lg shadow-xl px-3 py-2 text-xs whitespace-nowrap flex items-center gap-2">
+                                                <span className="text-muted-foreground">Total Balance</span>
+                                                <span className={`font-mono font-bold ${isDebit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                    {isDebit ? '+' : '-'}{absDisplay}
+                                                </span>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${isDebit ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'}`}>
+                                                    {isDebit ? 'DEBIT' : 'CREDIT'}
+                                                </span>
+                                            </div>
+                                            {/* Arrow */}
+                                            <div className="w-2 h-2 bg-[#1e1e2e] border-b border-r border-border rotate-45 mx-auto -mt-1"></div>
+                                        </div>
+
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <span className="text-xs font-mono text-muted-foreground bg-black/30 px-2 py-1 rounded">{acc.import_account_number}</span>
                                                 <p className="font-medium text-foreground mt-2">{acc.import_account_name}</p>
+                                                {/* Inline balance badge */}
+                                                <span className={`mt-1.5 inline-block text-[10px] font-mono px-2 py-0.5 rounded border ${isDebit ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                                    {isDebit ? '+' : ''}{absDisplay}
+                                                </span>
                                             </div>
 
                                             {/* Master Dropdown Selector */}

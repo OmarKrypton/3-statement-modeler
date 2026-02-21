@@ -22,7 +22,7 @@ def get_periods(company_id: str, db: Session = Depends(get_db)):
 
 @router.delete("/{period_date}")
 def delete_period(company_id: str, period_date: date, db: Session = Depends(get_db)):
-    """Delete a specific reporting period and all its trial balance entries."""
+    """Delete a specific reporting period, its trial balance entries, and any now-orphaned company accounts."""
     period = db.query(models.ReportingPeriod).filter(
         models.ReportingPeriod.company_id == company_id,
         models.ReportingPeriod.period_date == period_date
@@ -36,6 +36,32 @@ def delete_period(company_id: str, period_date: date, db: Session = Depends(get_
         models.TrialBalanceEntry.reporting_period_id == period.id
     ).delete(synchronize_session=False)
     db.delete(period)
-    db.commit()
+    db.flush()  # Apply changes before querying for orphans
 
-    return {"status": "success", "message": f"Period {period_date} and all associated entries deleted."}
+    # Find CompanyAccounts that now have no TrialBalanceEntries in any period
+    from sqlalchemy.sql import func
+    orphaned = (
+        db.query(models.CompanyAccount)
+        .outerjoin(
+            models.TrialBalanceEntry,
+            models.CompanyAccount.id == models.TrialBalanceEntry.company_account_id
+        )
+        .filter(
+            models.CompanyAccount.company_id == company_id,
+            models.TrialBalanceEntry.id == None
+        )
+        .all()
+    )
+
+    orphan_ids = [a.id for a in orphaned]
+    if orphan_ids:
+        # Delete their mappings first (FK constraint)
+        db.query(models.AccountMapping).filter(
+            models.AccountMapping.company_account_id.in_(orphan_ids)
+        ).delete(synchronize_session=False)
+        db.query(models.CompanyAccount).filter(
+            models.CompanyAccount.id.in_(orphan_ids)
+        ).delete(synchronize_session=False)
+
+    db.commit()
+    return {"status": "success", "message": f"Period {period_date} and all associated entries deleted.", "orphaned_accounts_removed": len(orphan_ids)}

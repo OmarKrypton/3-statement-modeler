@@ -44,6 +44,11 @@ class CompanyAccountResponse(CompanyAccountBase, ORMBase):
     id: str
     company_id: str
 
+class CompanyAccountWithBalance(CompanyAccountBase, ORMBase):
+    id: str
+    company_id: str
+    total_balance: int = 0
+
 # --- Account Mappings ---
 class AccountMappingUpdate(BaseModel):
     company_account_id: str

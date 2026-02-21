@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.sql import func
 from typing import List
 
 from .. import models, schemas
@@ -11,19 +12,35 @@ router = APIRouter(
     tags=["Account Mappings"]
 )
 
-@router.get("/unmapped", response_model=List[schemas.CompanyAccountResponse])
+@router.get("/unmapped", response_model=List[schemas.CompanyAccountWithBalance])
 def get_unmapped_accounts(company_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Fetch all active company accounts that do NOT have an entry in account_mappings."""
-    unmapped = db.query(models.CompanyAccount).outerjoin(
+    """Fetch all active company accounts that do NOT have an entry in account_mappings, with their total balance."""
+    rows = db.query(
+        models.CompanyAccount,
+        func.coalesce(func.sum(models.TrialBalanceEntry.balance), 0).label("total_balance")
+    ).outerjoin(
         models.AccountMapping, 
         models.CompanyAccount.id == models.AccountMapping.company_account_id
+    ).outerjoin(
+        models.TrialBalanceEntry,
+        models.CompanyAccount.id == models.TrialBalanceEntry.company_account_id
     ).filter(
         models.CompanyAccount.company_id == company_id,
         models.CompanyAccount.is_active == True,
         models.AccountMapping.id == None
-    ).offset(skip).limit(limit).all()
-    
-    return unmapped
+    ).group_by(models.CompanyAccount.id).offset(skip).limit(limit).all()
+
+    return [
+        schemas.CompanyAccountWithBalance(
+            id=acc.id,
+            company_id=acc.company_id,
+            import_account_number=acc.import_account_number,
+            import_account_name=acc.import_account_name,
+            is_active=acc.is_active,
+            total_balance=total_balance
+        )
+        for acc, total_balance in rows
+    ]
 
 @router.put("/", status_code=status.HTTP_200_OK)
 def batch_update_mappings(
