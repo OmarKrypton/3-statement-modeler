@@ -31,6 +31,7 @@ export function TbUploader() {
             setErrorText("");
             setWarningText(data.warning || "");
             queryClient.invalidateQueries({ queryKey: ["periods", ACME_CORP_ID] });
+            queryClient.invalidateQueries({ queryKey: ["unmapped", ACME_CORP_ID] });
         },
         onError: (err: AxiosError<{ detail: string }>) => {
             setErrorText(err.response?.data?.detail || "An error occurred during upload.");
@@ -43,6 +44,7 @@ export function TbUploader() {
         onSuccess: () => {
             setDeletingPeriod(null);
             queryClient.invalidateQueries({ queryKey: ["periods", ACME_CORP_ID] });
+            queryClient.invalidateQueries({ queryKey: ["unmapped", ACME_CORP_ID] });
         },
     });
 
