@@ -8,9 +8,14 @@
 
 A full-stack web application that automates the generation of financial statements from raw Trial Balance extracts.
 
-The **3-Statement Modeler** ingests accounting data, standardizes it through a visual Mapping Engine, and automatically derives a perfectly balanced **Income Statement**, **Balance Sheet**, and **Statement of Cash Flows**. It features a robust **Forecasting Engine** for scenario-based projections and professional **PDF/Excel exporting**.
+The **3-Statement Modeler** ingests accounting data, standardizes it through a visual Mapping Engine, and automatically derives a perfectly balanced **Income Statement**, **Balance Sheet**, and **Statement of Cash Flows**. It features a **Live KPI Dashboard** for visual performance tracking, a robust **Forecasting Engine** for scenario-based projections, and professional **PDF/Excel exporting**.
 
 ## 🚀 Features
+
+- **KPI Dashboards & Data Visualization**
+  - Interactive charts for **Revenue & EBITDA Trajectory** (composed bars/lines)
+  - **Liquidity Tracking**: Area charts visualizing inception-to-date cash position
+  - Automatic persistence: Your modeled forecasts load instantly upon refresh if configurations are saved
 
 - **Multi-Period Trial Balance Ingestion**
   - Upload standard `.csv` extracts (columns: `account_number`, `account_name`, `balance` in cents)
@@ -44,7 +49,7 @@ The **3-Statement Modeler** ingests accounting data, standardizes it through a v
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | Next.js 16, React, TypeScript, Tailwind CSS, `@tanstack/react-query`, `lucide-react`, `jsPDF` |
+| **Frontend** | Next.js 16, React, TypeScript, Tailwind CSS, `@tanstack/react-query`, `lucide-react`, `jsPDF`, `Recharts` |
 | **Backend** | FastAPI, Python 3.12, SQLAlchemy, Pydantic, `openpyxl` |
 | **Database** | SQLite (`threestatement.db`) |
 
@@ -81,11 +86,12 @@ npm run dev
 
 ## 📈 Workflow
 
-1. **Upload** — Go to **Trial Balance** tab. Import one or more `.csv` extracts, each tagged with a period-ending date.
-2. **Map** — Go to **Mapping Engine**. Link your raw accounts to the standardized Master CoA categories.
-3. **Analyze** — Go to **Statements** tab. Toggle one or more periods to generate comparative side-by-side reports.
-4. **Forecast** — Go to **Forecast Engine**. Set drivers and scenarios to project future performance.
-5. **Export** — Click **Export Report** to download professional reports in Excel or PDF.
+1. **Dashboard** — View a high-level summary of historical performance and future projections instantly.
+2. **Upload** — Go to **Trial Balance** tab. Import one or more `.csv` extracts, each tagged with a period-ending date.
+3. **Map** — Go to **Mapping Engine**. Link your raw accounts to the standardized Master CoA categories.
+4. **Analyze** — Go to **Statements** tab. Toggle one or more periods to generate comparative side-by-side reports.
+5. **Forecast** — Go to **Forecast Engine**. Set drivers and scenarios to project future performance.
+6. **Export** — Click **Export Report** to download professional reports in Excel or PDF.
 
 ## 📄 CSV Format
 
