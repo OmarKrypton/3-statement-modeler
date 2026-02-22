@@ -9,7 +9,7 @@ import {
     getForecastStatements,
     ForecastConfigPayload,
 } from "@/lib/api";
-import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
+import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle, Download, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
@@ -163,6 +163,14 @@ export default function ForecastPage() {
         setHasRun(true);
     };
 
+    const handleExportExcel = () => {
+        window.open(`http://localhost:8000/api/v1/companies/${ACME_CORP_ID}/export/excel?scenario=${scenario}`);
+    };
+
+    const handleExportPDF = () => {
+        window.print();
+    };
+
     const projections = forecast?.projections ?? [];
     const actuals = forecast?.actuals;
 
@@ -176,20 +184,40 @@ export default function ForecastPage() {
     return (
         <div className="flex flex-col gap-6 py-8 animate-in slide-in-from-bottom-4 duration-500 min-h-full">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                    <TrendingUp className="w-8 h-8 text-primary" />
-                    Forecast Engine
-                </h1>
-                <p className="mt-2 text-muted-foreground max-w-2xl">
-                    Define assumption drivers based on your actual historical data and project future Income Statement, Balance Sheet, and Cash Flow positions.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+                        <TrendingUp className="w-8 h-8 text-primary" />
+                        Forecast Engine
+                    </h1>
+                    <p className="mt-2 text-muted-foreground max-w-2xl">
+                        Define assumption drivers based on your actual historical data and project future Income Statement, Balance Sheet, and Cash Flow positions.
+                    </p>
+                </div>
+                {hasRun && forecast && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleExportPDF}
+                            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-foreground font-medium flex items-center gap-2 transition-colors text-sm shadow-sm"
+                        >
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            PDF
+                        </button>
+                        <button
+                            onClick={handleExportExcel}
+                            className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm shadow-sm"
+                        >
+                            <Download className="w-4 h-4" />
+                            Excel
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6 items-start">
 
                 {/* ── Left panel: Assumptions ─────────────────────────────── */}
-                <div className="glass-card rounded-xl border border-border overflow-hidden sticky top-6">
+                <div className="glass-card rounded-xl border border-border overflow-hidden sticky top-6 print:hidden">
                     <div className="p-4 border-b border-border bg-gradient-to-r from-primary/10 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-primary" />
                         <h3 className="font-semibold text-foreground">Assumption Drivers</h3>
