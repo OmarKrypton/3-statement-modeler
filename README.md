@@ -8,7 +8,7 @@
 
 A full-stack web application that automates the generation of financial statements from raw Trial Balance extracts.
 
-The **3-Statement Modeler** ingests accounting data, standardizes it through a visual Mapping Engine to a GAAP-compliant Master Chart of Accounts, and automatically derives a perfectly balanced **Income Statement**, **Balance Sheet**, and **Statement of Cash Flows (Indirect Method)** — across **multiple reporting periods** for comparative analysis.
+The **3-Statement Modeler** ingests accounting data, standardizes it through a visual Mapping Engine, and automatically derives a perfectly balanced **Income Statement**, **Balance Sheet**, and **Statement of Cash Flows**. It features a robust **Forecasting Engine** for scenario-based projections and professional **PDF/Excel exporting**.
 
 ## 🚀 Features
 
@@ -28,14 +28,24 @@ The **3-Statement Modeler** ingests accounting data, standardizes it through a v
   - **Balance Sheet**: Inception-to-date snapshot per period; includes an "Out of Balance" alert if unmapped accounts exist
   - **Statement of Cash Flows**: Indirect method — Operating, Investing, and Financing sections with beginning/ending cash reconciliation
 
+- **Forecasting Engine**
+  - Project up to 12 future periods based on customizable assumption drivers (Revenue Growth, COGS %, OpEx Growth, etc.)
+  - Fully integrated 3-statement projections: IS flows into BS, which drives CF
+  - **Scenario Analysis**: Toggle between **Base**, **Bull**, and **Bear** assumption sets to immediately see impact on projections
+
+- **Professional Exporting**
+  - **Multi-Format Support**: Generate high-fidelity **Excel (.xlsx)** and **PDF** reports
+  - **Granular Control**: Select specific statements to include in the export
+  - **Accounting Format**: Professional bracketed formatting for negative values and expenses: `($16,000)`
+
 - **Company Settings**: Manage company context, fiscal year end, and inspect the global Master Chart of Accounts structure
 
 ## 🛠️ Tech Stack
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | Next.js 16, React, TypeScript, Tailwind CSS, `@tanstack/react-query`, `lucide-react` |
-| **Backend** | FastAPI, Python 3.12, SQLAlchemy, Pydantic |
+| **Frontend** | Next.js 16, React, TypeScript, Tailwind CSS, `@tanstack/react-query`, `lucide-react`, `jsPDF` |
+| **Backend** | FastAPI, Python 3.12, SQLAlchemy, Pydantic, `openpyxl` |
 | **Database** | SQLite (`threestatement.db`) |
 
 ## 🚦 Getting Started
@@ -73,7 +83,9 @@ npm run dev
 
 1. **Upload** — Go to **Trial Balance** tab. Import one or more `.csv` extracts, each tagged with a period-ending date.
 2. **Map** — Go to **Mapping Engine**. Link your raw accounts to the standardized Master CoA categories.
-3. **Analyze** — Go to **Statements** tab. Toggle one or more periods to generate comparative Income Statement, Balance Sheet, and Cash Flow side by side.
+3. **Analyze** — Go to **Statements** tab. Toggle one or more periods to generate comparative side-by-side reports.
+4. **Forecast** — Go to **Forecast Engine**. Set drivers and scenarios to project future performance.
+5. **Export** — Click **Export Report** to download professional reports in Excel or PDF.
 
 ## 📄 CSV Format
 

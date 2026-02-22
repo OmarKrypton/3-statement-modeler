@@ -7,8 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(cents: number): string {
   const value = cents / 100;
-  return new Intl.NumberFormat('en-US', {
+  const formatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(value);
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(value));
+
+  return value < 0 ? `(${formatted})` : formatted;
 }

@@ -5,13 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { getPeriods, getIncomeStatement, getBalanceSheet, getCashFlow } from "@/lib/api";
 import { StatementResult, BalanceSheetResult, CashFlowResult } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle, CheckSquare, Square } from "lucide-react";
+import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle, CheckSquare, Square, Share } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import ExportModal from "@/components/features/export/ExportModal";
 
 // Hardcoded for MVP
 const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
 
 export default function StatementsPage() {
     const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
     const { data: availablePeriods, isLoading: isPeriodsLoading } = useQuery<string[]>({
         queryKey: ["periods", ACME_CORP_ID],
@@ -30,6 +34,132 @@ export default function StatementsPage() {
         setSelectedPeriods(prev =>
             prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
         );
+    };
+
+    const handleExport = (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
+        if (format === "excel") {
+            const params = new URLSearchParams({
+                periods: selectedPeriods.join(","),
+                include_is: selection.is.toString(),
+                include_bs: selection.bs.toString(),
+                include_cf: selection.cf.toString(),
+            });
+            window.open(`http://localhost:8000/api/v1/companies/${ACME_CORP_ID}/export/actuals/excel?${params.toString()}`);
+        } else {
+            handleExportPDF(selection);
+        }
+        setIsExportModalOpen(false);
+    };
+
+    const handleExportPDF = (selection: { is: boolean; bs: boolean; cf: boolean }) => {
+        const doc = new jsPDF("landscape");
+
+        const getExportMetadata = () => {
+            const selectedBits: string[] = [];
+            if (selection.is) selectedBits.push("IS");
+            if (selection.bs) selectedBits.push("BS");
+            if (selection.cf) selectedBits.push("CF");
+
+            const mapping: Record<string, string> = {
+                "IS": "Income Statement",
+                "BS": "Balance Sheet",
+                "CF": "Cash Flow"
+            };
+            const names = selectedBits.map(b => mapping[b]);
+
+            if (selectedBits.length === 3) {
+                return { title: "Full Financial Report (Actuals)", filename: "Full_Financial_Report_Actuals" };
+            }
+            if (selectedBits.length === 1) {
+                return { title: `${names[0] || "Financial Statement"} (Actuals)`, filename: `${selectedBits[0]}_Actuals` };
+            }
+
+            return {
+                title: `${names.join(" & ") || "Financial Report"} (Actuals)`,
+                filename: `${selectedBits.join("_")}_Actuals`
+            };
+        };
+
+        const metadata = getExportMetadata();
+
+        const formatMoney = (cents: number): string => {
+            const value = cents / 100;
+            const formatted = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            }).format(Math.abs(value));
+
+            return value < 0 ? `(${formatted})` : formatted;
+        };
+
+        doc.setFontSize(20);
+        doc.text(metadata.title, 14, 22);
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated on ${new Date().toLocaleString()}`, 14, 30);
+
+        const tableHeaders = ["Metric", ...selectedPeriods];
+        let lastY = 40;
+
+        if (selection.is) {
+            autoTable(doc, {
+                startY: lastY,
+                head: [tableHeaders],
+                body: [
+                    ["Total Revenues", ...incomeStatement.map(s => formatMoney(s.total_revenues_cents))],
+                    ["Total Expenses", ...incomeStatement.map(s => formatMoney(-s.total_expenses_cents))],
+                    [{ content: "Net Income", styles: { fontStyle: 'bold' as const } },
+                    ...incomeStatement.map(s => ({ content: formatMoney(s.net_income_cents), styles: { fontStyle: 'bold' as const } }))]
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [30, 41, 59] },
+                styles: { halign: 'right' },
+                didParseCell: (d) => { if (d.column.index === 0) d.cell.styles.halign = 'left'; }
+            });
+            lastY = ((doc as unknown) as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
+        }
+
+        if (selection.bs) {
+            autoTable(doc, {
+                startY: lastY,
+                head: [tableHeaders],
+                body: [
+                    ["Total Assets", ...balanceSheet.map(s => formatMoney(s.total_assets_cents))],
+                    ["Total Liabilities", ...balanceSheet.map(s => formatMoney(-s.total_liabilities_cents))],
+                    ["Total Equity", ...balanceSheet.map(s => formatMoney(-s.total_equity_cents))],
+                    [{ content: "Liab + Equity", styles: { fontStyle: 'bold' as const } },
+                    ...balanceSheet.map(s => ({ content: formatMoney(s.total_liabilities_cents + s.total_equity_cents), styles: { fontStyle: 'bold' as const } }))]
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42] },
+                styles: { halign: 'right' },
+                didParseCell: (d) => { if (d.column.index === 0) d.cell.styles.halign = 'left'; }
+            });
+            lastY = ((doc as unknown) as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
+        }
+
+        if (selection.cf) {
+            autoTable(doc, {
+                startY: lastY,
+                head: [tableHeaders],
+                body: [
+                    ["Net Income", ...cashFlow.map(s => formatMoney(s.net_income_cents))],
+                    ["Net Cash from Ops", ...cashFlow.map(s => formatMoney(s.net_cash_from_operations_cents))],
+                    ["Net Cash from Investing", ...cashFlow.map(s => formatMoney(s.net_cash_from_investing_cents))],
+                    ["Net Cash from Financing", ...cashFlow.map(s => formatMoney(s.net_cash_from_financing_cents))],
+                    [{ content: "Ending Cash", styles: { fontStyle: 'bold' as const } },
+                    ...cashFlow.map(s => ({ content: formatMoney(s.ending_cash_cents), styles: { fontStyle: 'bold' as const } }))]
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [5, 150, 105] },
+                styles: { halign: 'right' },
+                didParseCell: (d) => { if (d.column.index === 0) d.cell.styles.halign = 'left'; }
+            });
+        }
+
+        doc.save(`${metadata.filename}.pdf`);
     };
 
     const hasSelection = selectedPeriods.length > 0;
@@ -56,14 +186,32 @@ export default function StatementsPage() {
 
     return (
         <div className="flex flex-col gap-6 py-8 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-end">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Financial Statements</h1>
-                    <p className="mt-2 text-muted-foreground w-3/4">
+                    <p className="mt-2 text-muted-foreground max-w-2xl">
                         Comparative, real-time reporting based entirely on your mapped Trial Balance entries. Select multiple periods to track performance over time.
                     </p>
                 </div>
+                {hasSelection && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsExportModalOpen(true)}
+                            className="bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-5 py-2.5 rounded-xl flex items-center gap-2.5 transition-all font-semibold text-primary shadow-lg shadow-primary/5 active:scale-95 group"
+                        >
+                            <Share className="w-4.5 h-4.5 transition-transform group-hover:scale-110" />
+                            <span className="tracking-wide">Export Report</span>
+                        </button>
+                    </div>
+                )}
             </div>
+
+            <ExportModal
+                isOpen={isExportModalOpen}
+                onClose={() => setIsExportModalOpen(false)}
+                onExport={(format, selection) => handleExport(format, selection)}
+                title="Export Comparative Report"
+            />
 
             {/* Control Panel */}
             <div className="glass-card rounded-xl p-6 border-border mt-4 flex gap-8 items-start">
