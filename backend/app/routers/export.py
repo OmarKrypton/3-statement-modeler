@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import io
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 from ..database import get_db
 from .forecast import get_forecast_statements
@@ -15,18 +15,32 @@ router = APIRouter(
 
 # Shared styles
 bold_font = Font(bold=True)
-header_font = Font(bold=True, size=12)
+header_font = Font(bold=True, size=12, color="FFFFFF")
+title_font = Font(bold=True, size=16, color="333333")
 right_align = Alignment(horizontal="right")
-bottom_border = Border(bottom=Side(style='thin'))
+center_align = Alignment(horizontal="center")
+bottom_border = Border(bottom=Side(style='thin', color="CCCCCC"))
+all_border = Border(bottom=Side(style='thin', color="EEEEEE"), top=Side(style='thin', color="EEEEEE"))
+header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
 number_format = '_($* #,##0_);_($* (#,##0);_($* "-"_);_(@_)'
+
+def add_title(sheet, title_text, col_span):
+    sheet.append([title_text])
+    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=col_span)
+    cell = sheet.cell(row=1, column=1)
+    cell.font = title_font
+    cell.alignment = Alignment(horizontal="left", vertical="center")
+    sheet.row_dimensions[1].height = 25
 
 def add_header(sheet, columns):
     sheet.append(columns)
-    for cell in sheet[1]:
+    row = sheet.max_row
+    for cell in sheet[row]:
         cell.font = header_font
+        cell.fill = header_fill
         cell.border = bottom_border
         if cell.column > 1:
-            cell.alignment = right_align
+            cell.alignment = center_align
 
 def format_row(sheet, row_idx, is_bold=False):
     for cell in sheet[row_idx]:
@@ -54,11 +68,14 @@ def export_forecast_excel(company_id: str, scenario: str = "base", db: Session =
 
     # 2. Setup Workbook
     wb = openpyxl.Workbook()
+    total_cols = len(headers)
     
     # ── INCOME STATEMENT ──
     ws_is = wb.active
     ws_is.title = "Income Statement"
+    add_title(ws_is, f"Automated 3-Statement Modeler - Income Statement ({scenario.capitalize()} Scenario)", total_cols)
     add_header(ws_is, headers)
+    ws_is.freeze_panes = "B3"
     
     def r(actual_val, key, flip_sign=False):
         row = [actual_val]
@@ -86,7 +103,9 @@ def export_forecast_excel(company_id: str, scenario: str = "base", db: Session =
     
     # ── CASH FLOW STATEMENT ──
     ws_cf = wb.create_sheet("Cash Flow")
+    add_title(ws_cf, f"Automated 3-Statement Modeler - Cash Flow ({scenario.capitalize()} Scenario)", total_cols)
     add_header(ws_cf, headers)
+    ws_cf.freeze_panes = "B3"
     
     ws_cf.append(["Net Income"] + r(actuals.get("net_income_cents", 0) / 100.0, "net_income_cf_cents"))
     ws_cf.append(["D&A (Add-back)"] + r(0, "da_cents"))

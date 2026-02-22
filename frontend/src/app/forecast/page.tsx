@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
     getPeriods,
     getForecastConfig,
@@ -85,6 +87,27 @@ function StatRow({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+export interface ForecastPeriod {
+    period: string;
+    revenue_cents: number;
+    cogs_cents: number;
+    gross_profit_cents: number;
+    opex_cents: number;
+    ebitda_cents: number;
+    ebit_cents: number;
+    tax_cents: number;
+    net_income_cents: number;
+    net_income_cf_cents: number;
+    da_cents: number;
+    delta_wc_cents: number;
+    net_cash_from_operations_cents: number;
+    capex_cents: number;
+    net_cash_from_investing_cents: number;
+    net_cash_from_financing_cents: number;
+    beginning_cash_cents: number;
+    ending_cash_cents: number;
+}
+
 export default function ForecastPage() {
     const queryClient = useQueryClient();
     const [openSection, setOpenSection] = useState<"is" | "cf" | null>("is");
@@ -109,7 +132,7 @@ export default function ForecastPage() {
     });
 
     // Try loading existing config for the current scenario
-    const { data: savedConfig, isFetching: isFetchingConfig } = useQuery({
+    const { data: savedConfig } = useQuery({
         queryKey: ["forecast-config", ACME_CORP_ID, scenario],
         queryFn: () => getForecastConfig(ACME_CORP_ID, scenario),
         retry: false,
@@ -168,7 +191,99 @@ export default function ForecastPage() {
     };
 
     const handleExportPDF = () => {
-        window.print();
+        if (!forecast || !actuals) return;
+
+        const doc = new jsPDF("landscape");
+
+        const formatMoney = (cents: number) => {
+            return new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            }).format(cents / 100);
+        };
+
+        // Title
+        doc.setFontSize(20);
+        doc.setTextColor(50, 50, 50);
+        doc.text(`Automated 3-Statement Modeler (${scenario.toUpperCase()})`, 14, 22);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated on ${new Date().toLocaleString()}`, 14, 30);
+
+        const tableHeaders = ["Metric", `Actuals\n${forecast.base_period}`, ...projections.map((p: ForecastPeriod) => `Forecast\n${p.period}`)];
+
+        // --- INCOME STATEMENT ---
+        autoTable(doc, {
+            startY: 40,
+            head: [tableHeaders],
+            body: [
+                ["Revenue", formatMoney(actuals.revenue_cents), ...projections.map((p: ForecastPeriod) => formatMoney(p.revenue_cents))],
+                ["COGS", formatMoney(0), ...projections.map((p: ForecastPeriod) => formatMoney(-p.cogs_cents))],
+                [{ content: "Gross Profit", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(0), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.gross_profit_cents), styles: { fontStyle: 'bold' } }))],
+                ["Operating Expenses", formatMoney(-actuals.expenses_cents), ...projections.map((p: ForecastPeriod) => formatMoney(-p.opex_cents))],
+                [{ content: "EBITDA", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(0), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.ebitda_cents), styles: { fontStyle: 'bold' } }))],
+                ["D&A", formatMoney(0), ...projections.map((p: ForecastPeriod) => formatMoney(-p.da_cents))],
+                [{ content: "EBIT", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(0), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.ebit_cents), styles: { fontStyle: 'bold' } }))],
+                ["Tax", formatMoney(0), ...projections.map((p: ForecastPeriod) => formatMoney(-p.tax_cents))],
+                [{ content: "Net Income", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(actuals.net_income_cents), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.net_income_cents), styles: { fontStyle: 'bold' } }))],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [30, 41, 59], textColor: 255, halign: 'center' },
+            columnStyles: { 0: { cellWidth: 50 } },
+            styles: { fontSize: 9, halign: 'right' },
+            didParseCell: (hookData) => {
+                if (hookData.section === 'body' && hookData.column.index === 0) {
+                    hookData.cell.styles.halign = 'left';
+                }
+            }
+        });
+
+        // --- CASH FLOW STATEMENT ---
+        autoTable(doc, {
+            startY: ((doc as unknown) as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15,
+            head: [tableHeaders],
+            body: [
+                ["Net Income", formatMoney(actuals.net_income_cents), ...projections.map((p: ForecastPeriod) => formatMoney(p.net_income_cf_cents))],
+                ["D&A", formatMoney(0), ...projections.map((p: ForecastPeriod) => formatMoney(p.da_cents))],
+                ["Δ Net Working Capital", formatMoney(0), ...projections.map((p: ForecastPeriod) => formatMoney(p.delta_wc_cents))],
+                [{ content: "Cash from Operations", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(0), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.net_cash_from_operations_cents), styles: { fontStyle: 'bold' } }))],
+                ["CapEx", formatMoney(0), ...projections.map((p: ForecastPeriod) => formatMoney(-p.capex_cents))],
+                [{ content: "Cash from Investing", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(0), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.net_cash_from_investing_cents), styles: { fontStyle: 'bold' } }))],
+                [{ content: "Cash from Financing", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(0), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.net_cash_from_financing_cents), styles: { fontStyle: 'bold' } }))],
+                ["Beginning Cash", formatMoney(actuals.cash_cents), ...projections.map((p: ForecastPeriod) => formatMoney(p.beginning_cash_cents))],
+                [{ content: "Ending Cash", styles: { fontStyle: 'bold' } },
+                { content: formatMoney(actuals.cash_cents), styles: { fontStyle: 'bold' } },
+                ...projections.map((p: ForecastPeriod) => ({ content: formatMoney(p.ending_cash_cents), styles: { fontStyle: 'bold' } }))],
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [30, 41, 59], textColor: 255, halign: 'center' },
+            columnStyles: { 0: { cellWidth: 50 } },
+            styles: { fontSize: 9, halign: 'right' },
+            didParseCell: (hookData) => {
+                if (hookData.section === 'body' && hookData.column.index === 0) {
+                    hookData.cell.styles.halign = 'left';
+                }
+            }
+        });
+
+        doc.save(`Forecast_${scenario.toUpperCase()}.pdf`);
     };
 
     const projections = forecast?.projections ?? [];
