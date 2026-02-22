@@ -108,6 +108,33 @@ account_number,account_name,balance
 - Debits are **positive**, credits are **negative**
 - The file should sum to `0` (balanced), but the system accepts and imports unbalanced files with a warning
 
+## 📂 Project Structure
+
+```text
+.
+├── backend
+│   ├── app
+│   │   ├── main.py          # FastAPI entry point
+│   │   ├── models.py        # SQLAlchemy database models
+│   │   ├── database.py      # Connection and session management
+│   │   ├── schemas.py       # Pydantic validation schemas
+│   │   └── routers/         # API endpoints (IS, BS, CF, Forecast, Export, Dashboard)
+│   ├── seed.py              # Script to bootstrap sample company data
+│   └── requirements.txt     # Python dependencies
+│
+├── frontend
+│   ├── src
+│   │   ├── app/             # Next.js App Router (Pages: Dashboard, Trial Balance, etc.)
+│   │   ├── components/      # UI components (Layout, Features, Modals)
+│   │   ├── lib/             # API client (Axios) and utility helpers
+│   │   └── types/           # TypeScript interface definitions
+│   ├── public/              # Static assets and icons
+│   └── package.json         # Frontend dependencies and scripts
+│
+├── README.md                # Project documentation
+└── logo_3s.png              # Application branding
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
