@@ -117,3 +117,8 @@ export const getForecastStatements = async (companyId: string, scenario: string 
     const { data } = await api.get(`/companies/${companyId}/forecast/statements?scenario=${scenario}`);
     return data;
 };
+
+export const getDashboardSummary = async (companyId: string) => {
+    const { data } = await api.get(`/companies/${companyId}/dashboard/summary`);
+    return data;
+};
