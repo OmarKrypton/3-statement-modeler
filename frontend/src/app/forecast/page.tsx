@@ -112,7 +112,6 @@ export interface ForecastPeriod {
 export default function ForecastPage() {
     const queryClient = useQueryClient();
     const [openSection, setOpenSection] = useState<"is" | "cf" | null>("is");
-    const [hasRun, setHasRun] = useState(false);
     const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -157,8 +156,6 @@ export default function ForecastPage() {
                 da_cents: 0,
                 wc_pct_of_revenue: 1000,
             }));
-            // We clear hasRun so the user knows they need to hit Run Forecast for the new scenario
-            setHasRun(false);
         }
     }, [savedConfig, scenario]);
 
@@ -178,14 +175,13 @@ export default function ForecastPage() {
     const { data: forecast, refetch: runForecast, isFetching, error: forecastError } = useQuery({
         queryKey: ["forecast-statements", ACME_CORP_ID, scenario],
         queryFn: () => getForecastStatements(ACME_CORP_ID, scenario),
-        enabled: false,
+        enabled: !!savedConfig,
         retry: false,
     });
 
     const handleRun = async () => {
         await saveMutation.mutateAsync();
         await runForecast();
-        setHasRun(true);
     };
 
     const handleExport = (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
@@ -382,7 +378,7 @@ export default function ForecastPage() {
                         Define assumption drivers based on your actual historical data and project future Income Statement, Balance Sheet, and Cash Flow positions.
                     </p>
                 </div>
-                {hasRun && forecast && (
+                {forecast && (
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsExportModalOpen(true)}
@@ -494,7 +490,7 @@ export default function ForecastPage() {
 
                 {/* ── Right panel: Projected Statements ──────────────────── */}
                 <div className="flex flex-col gap-5">
-                    {!hasRun && !forecast && (
+                    {!forecast && !isFetching && (
                         <div className="glass-card rounded-xl border border-border p-16 text-center">
                             <TrendingUp className="w-12 h-12 mx-auto mb-4 text-primary/30" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">Ready to Model</h3>
