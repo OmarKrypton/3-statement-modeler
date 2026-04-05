@@ -12,11 +12,13 @@ import {
     ForecastConfigPayload,
     getCompanies,
     deleteForecastConfig,
+    api,
 } from "@/lib/api";
 import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle, Share, Loader2, RotateCcw, Plus, Minus, Trash2 } from "lucide-react";
 import ExportModal from "@/components/features/export/ExportModal";
 import { formatCurrency } from "@/lib/utils";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { downloadFile } from "@/lib/download";
 
 // Dynamic Company Context will be resolved within the component
 
@@ -223,21 +225,19 @@ export default function ForecastPage() {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setCfg(savedConfig);
         } else {
-            // Reset to defaults if no config exists for this scenario (except keep base_period)
+            // Pick appropriate defaults based on the scenario
+            let defaults = BASE_DEFAULTS;
+            if (scenario === "bull") defaults = BULL_DEFAULTS;
+            if (scenario === "bear") defaults = BEAR_DEFAULTS;
+
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setCfg(prev => ({
-                ...prev,
+            setCfg({
+                ...defaults,
                 scenario_name: scenario,
-                revenue_growth_pct: 500,
-                cogs_pct_of_revenue: 6000,
-                opex_growth_pct: 300,
-                tax_rate_pct: 2100,
-                capex_cents: 0,
-                da_cents: 0,
-                wc_pct_of_revenue: 1000,
-            }));
+                base_period: periods[0] || null
+            });
         }
-    }, [savedConfig, scenario]);
+    }, [savedConfig, scenario, periods]);
 
     // Auto-select latest period as base
     useEffect(() => {
@@ -249,7 +249,10 @@ export default function ForecastPage() {
 
     const saveMutation = useMutation({
         mutationFn: () => saveForecastConfig(companyId!, { ...cfg, scenario_name: scenario }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["forecast-config", companyId, scenario] }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["forecast-config", companyId, scenario] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-summary", companyId] });
+        },
     });
 
     const clearMutation = useMutation({
@@ -257,6 +260,7 @@ export default function ForecastPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["forecast-config", companyId, scenario] });
             queryClient.invalidateQueries({ queryKey: ["forecast-statements", companyId, scenario] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-summary", companyId] });
         }
     });
 
@@ -284,7 +288,7 @@ export default function ForecastPage() {
         });
     };
 
-    const handleExport = (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
+    const handleExport = async (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
         if (format === "excel") {
             const params = new URLSearchParams({
                 scenario,
@@ -292,14 +296,28 @@ export default function ForecastPage() {
                 include_bs: selection.bs.toString(),
                 include_cf: selection.cf.toString(),
             });
-            window.open(`/api/v1/companies/${companyId}/export/excel?${params.toString()}`);
+            
+            try {
+                const response = await api.get(`/companies/${companyId}/export/excel?${params.toString()}`, {
+                    responseType: 'blob'
+                });
+                
+                await downloadFile(
+                    response.data, 
+                    `${scenario}_forecast.xlsx`, 
+                    "xlsx"
+                );
+            } catch (err) {
+                console.error("Excel export failed", err);
+                alert("Failed to export Excel. Please try again.");
+            }
         } else {
-            handleExportPDF(selection);
+            await handleExportPDF(selection);
         }
         setIsExportModalOpen(false);
     };
 
-    const handleExportPDF = (selection: { is: boolean; bs: boolean; cf: boolean }) => {
+    const handleExportPDF = async (selection: { is: boolean; bs: boolean; cf: boolean }) => {
         if (!forecast || !actuals) return;
         const doc = new jsPDF("landscape");
 
@@ -452,7 +470,12 @@ export default function ForecastPage() {
             });
         }
 
-        doc.save(`${metadata.filename}.pdf`);
+        const pdfData = doc.output('arraybuffer');
+        await downloadFile(
+            new Uint8Array(pdfData), 
+            `${metadata.filename}.pdf`, 
+            "pdf"
+        );
     };
 
     const projections = forecast?.projections ?? [];

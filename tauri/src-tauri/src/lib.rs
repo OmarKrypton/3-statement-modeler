@@ -29,6 +29,8 @@ fn wait_for_backend(timeout_secs: u64) -> bool {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             // ── Manual Sidecar Discovery ─────────────────────────────────
             // We bypass the sidecar() macro magic because it is failing to find 

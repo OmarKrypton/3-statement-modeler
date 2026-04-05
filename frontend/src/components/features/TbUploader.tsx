@@ -38,6 +38,7 @@ export function TbUploader() {
             setWarningText(data.warning || "");
             queryClient.invalidateQueries({ queryKey: ["periods", companyId] });
             queryClient.invalidateQueries({ queryKey: ["unmapped", companyId] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-summary", companyId] });
         },
         onError: (err: any) => {
             console.error("Upload error:", err);

@@ -56,7 +56,8 @@ export function CompanySettings() {
         queryFn: getCompanies
     });
 
-    const company = companies?.find((c: Company) => c.id === ACME_CORP_ID);
+    const company = companies?.[0];
+    const companyId = company?.id;
 
     const [form, setForm] = useState({
         name: "",
@@ -76,7 +77,7 @@ export function CompanySettings() {
     }, [company]);
 
     const mutation = useMutation({
-        mutationFn: (updatedData: typeof form) => updateCompany(ACME_CORP_ID, updatedData),
+        mutationFn: (updatedData: typeof form) => updateCompany(companyId!, updatedData),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["companies"] });
         }

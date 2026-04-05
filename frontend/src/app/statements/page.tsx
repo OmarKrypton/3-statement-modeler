@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPeriods, getIncomeStatement, getBalanceSheet, getCashFlow, getCompanies } from "@/lib/api";
+import { getPeriods, getIncomeStatement, getBalanceSheet, getCashFlow, getCompanies, api } from "@/lib/api";
 import { StatementResult, BalanceSheetResult, CashFlowResult } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle, CheckSquare, Square, Share, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExportModal from "@/components/features/export/ExportModal";
+import { downloadFile } from "@/lib/download";
 
 export default function StatementsPage() {
     const { data: companies, isLoading: isCompaniesLoading } = useQuery({
@@ -40,7 +41,27 @@ export default function StatementsPage() {
         );
     };
 
-    const handleExport = (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
+    const hasSelection = selectedPeriods.length > 0;
+
+    const { data: incomeStatement = [], isLoading, isError } = useQuery<StatementResult[]>({
+        queryKey: ["income-statement", companyId, selectedPeriods],
+        queryFn: () => getIncomeStatement(companyId!, selectedPeriods),
+        enabled: hasSelection && !!companyId,
+    });
+
+    const { data: balanceSheet = [], isLoading: isBsLoading, isError: isBsError } = useQuery<BalanceSheetResult[]>({
+        queryKey: ["balance-sheet", companyId, selectedPeriods],
+        queryFn: () => getBalanceSheet(companyId!, selectedPeriods),
+        enabled: hasSelection && !!companyId,
+    });
+
+    const { data: cashFlow = [], isLoading: isCfLoading, isError: isCfError } = useQuery<CashFlowResult[]>({
+        queryKey: ["cash-flow", companyId, selectedPeriods],
+        queryFn: () => getCashFlow(companyId!, selectedPeriods),
+        enabled: hasSelection && !!companyId,
+    });
+
+    const handleExport = async (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
         if (format === "excel") {
             const params = new URLSearchParams({
                 periods: selectedPeriods.join(","),
@@ -48,14 +69,28 @@ export default function StatementsPage() {
                 include_bs: selection.bs.toString(),
                 include_cf: selection.cf.toString(),
             });
-            window.open(`/api/v1/companies/${companyId}/export/actuals/excel?${params.toString()}`);
+            
+            try {
+                const response = await api.get(`/companies/${companyId}/export/actuals/excel?${params.toString()}`, {
+                    responseType: 'blob'
+                });
+                
+                await downloadFile(
+                    response.data, 
+                    "financial_statements.xlsx", 
+                    "xlsx"
+                );
+            } catch (err) {
+                console.error("Excel export failed", err);
+                alert("Failed to export Excel. Please try again.");
+            }
         } else {
-            handleExportPDF(selection);
+            await handleExportPDF(selection);
         }
         setIsExportModalOpen(false);
     };
 
-    const handleExportPDF = (selection: { is: boolean; bs: boolean; cf: boolean }) => {
+    const handleExportPDF = async (selection: { is: boolean; bs: boolean; cf: boolean }) => {
         const doc = new jsPDF("landscape");
 
         const getExportMetadata = () => {
@@ -163,28 +198,13 @@ export default function StatementsPage() {
             });
         }
 
-        doc.save(`${metadata.filename}.pdf`);
+        const pdfData = doc.output('arraybuffer');
+        await downloadFile(
+            new Uint8Array(pdfData), 
+            `${metadata.filename}.pdf`, 
+            "pdf"
+        );
     };
-
-    const hasSelection = selectedPeriods.length > 0;
-
-    const { data: incomeStatement = [], isLoading, isError } = useQuery<StatementResult[]>({
-        queryKey: ["income-statement", companyId, selectedPeriods],
-        queryFn: () => getIncomeStatement(companyId!, selectedPeriods),
-        enabled: hasSelection && !!companyId,
-    });
-
-    const { data: balanceSheet = [], isLoading: isBsLoading, isError: isBsError } = useQuery<BalanceSheetResult[]>({
-        queryKey: ["balance-sheet", companyId, selectedPeriods],
-        queryFn: () => getBalanceSheet(companyId!, selectedPeriods),
-        enabled: hasSelection && !!companyId,
-    });
-
-    const { data: cashFlow = [], isLoading: isCfLoading, isError: isCfError } = useQuery<CashFlowResult[]>({
-        queryKey: ["cash-flow", companyId, selectedPeriods],
-        queryFn: () => getCashFlow(companyId!, selectedPeriods),
-        enabled: hasSelection && !!companyId,
-    });
 
     const hasUnmapped = balanceSheet.some(bs => bs.unmapped_balance_cents !== 0);
 
