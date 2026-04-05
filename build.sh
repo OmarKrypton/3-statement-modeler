@@ -26,6 +26,7 @@ if [ ! -d "node_modules" ]; then
   echo "  (Fresh clone detected: Installing frontend dependencies...)"
   npm install --quiet
 fi
+rm -rf .next
 npm run build
 echo "  ✓ Frontend built → frontend/out/"
 
