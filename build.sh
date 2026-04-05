@@ -22,6 +22,10 @@ echo ""
 # ── Step 1: Build Next.js static export ──────────────────────────────────────
 echo "▶ [1/5] Building Next.js frontend (static export)..."
 cd "$FRONTEND_DIR"
+if [ ! -d "node_modules" ]; then
+  echo "  (Fresh clone detected: Installing frontend dependencies...)"
+  npm install --quiet
+fi
 npm run build
 echo "  ✓ Frontend built → frontend/out/"
 
@@ -34,6 +38,12 @@ echo "  ✓ Copied → backend/static/"
 # ── Step 3: Bundle backend with PyInstaller ───────────────────────────────────
 echo "▶ [3/5] Bundling backend with PyInstaller..."
 cd "$BACKEND_DIR"
+if [ ! -d ".venv" ]; then
+  echo "  (Fresh clone detected: Creating Python virtual environment...)"
+  python -m venv .venv
+  .venv/bin/python -m pip install --upgrade pip --quiet
+  .venv/bin/python -m pip install -r requirements.txt --quiet
+fi
 .venv/bin/python -m pip install pyinstaller --quiet
 .venv/bin/python -m PyInstaller 3sm.spec --noconfirm
 echo "  ✓ Backend bundled → backend/dist/3sm/"
