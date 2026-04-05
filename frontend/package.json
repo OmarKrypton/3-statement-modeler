@@ -11,8 +11,8 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.0",
+    "@tauri-apps/plugin-fs": "^2.5.0",
     "axios": "^1.13.5",
     "clsx": "^2.1.1",
     "jspdf": "^4.2.0",
