@@ -31,13 +31,14 @@ export default function DashboardPage() {
     queryFn: getCompanies
   });
 
-  const companyId = companies?.[0]?.id;
+  const company = companies?.[0];
+  const currency = company?.currency || "USD";
   const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
 
   const { data: summary, isLoading } = useQuery<DashboardSummaryEntry[]>({
-    queryKey: ["dashboard-summary", companyId, scenario],
-    queryFn: () => getDashboardSummary(companyId!, scenario),
-    enabled: !!companyId
+    queryKey: ["dashboard-summary", company?.id, scenario, currency],
+    queryFn: () => getDashboardSummary(company!.id, scenario),
+    enabled: !!company?.id
   });
 
   if (isLoading) {
@@ -125,25 +126,25 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Latest Revenue"
-          value={formatCurrency(latest.revenue)}
+          value={formatCurrency(latest.revenue, currency)}
           subtitle={`Period ending ${latest.period}`}
           icon={<DollarSign className="text-blue-400" />}
         />
         <KPICard
           title="EBITDA"
-          value={formatCurrency(latest.ebitda)}
+          value={formatCurrency(latest.ebitda, currency)}
           subtitle={`${latest.revenue > 0 ? ((latest.ebitda / latest.revenue) * 100).toFixed(1) : 0}% Margin`}
           icon={<Activity className="text-purple-400" />}
         />
         <KPICard
           title="Net Income"
-          value={formatCurrency(latest.net_income)}
+          value={formatCurrency(latest.net_income, currency)}
           subtitle={latest.net_income > 0 ? "Profitable" : "Operating Loss"}
           icon={latest.net_income > 0 ? <TrendingUp className="text-green-400" /> : <TrendingDown className="text-red-400" />}
         />
         <KPICard
           title="Ending Cash"
-          value={formatCurrency(latest.cash)}
+          value={formatCurrency(latest.cash, currency)}
           subtitle="Liquidity Position"
           icon={<DollarSign className="text-emerald-400" />}
         />
@@ -213,7 +214,7 @@ export default function DashboardPage() {
                                   <div className="w-2 h-2 rounded-full shadow-[0_0_5px_rgba(255,255,255,0.3)]" style={{ backgroundColor: entry.color }} />
                                   <span className="text-[11px] font-medium text-slate-400">{(String(entry.name || "")).split(' (')[0]}</span>
                                 </div>
-                                <span className="text-[11px] font-mono font-bold text-white">{formatCurrency(Number(entry.value))}</span>
+                                <span className="text-[11px] font-mono font-bold text-white">{formatCurrency(Number(entry.value), currency)}</span>
                               </div>
                             );
                           })}
@@ -332,7 +333,7 @@ export default function DashboardPage() {
                                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                                   <span className="text-[11px] font-medium text-slate-400">Ending Cash</span>
                                 </div>
-                                <span className="text-[11px] font-mono font-bold text-white">{formatCurrency(Number(entry.value))}</span>
+                                <span className="text-[11px] font-mono font-bold text-white">{formatCurrency(Number(entry.value), currency)}</span>
                               </div>
                             );
                           })}

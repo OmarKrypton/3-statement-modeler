@@ -56,6 +56,7 @@ export function TbUploader() {
             setDeletingPeriod(null);
             queryClient.invalidateQueries({ queryKey: ["periods", companyId] });
             queryClient.invalidateQueries({ queryKey: ["unmapped", companyId] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-summary", companyId] });
         },
     });
 

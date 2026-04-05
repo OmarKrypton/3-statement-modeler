@@ -63,8 +63,8 @@ function BpsInput({
 }
 
 function CentsInput({
-    label, hint, value, onChange,
-}: { label: string; hint: string; value: number; onChange: (v: number) => void }) {
+    label, hint, value, onChange, currency = "USD"
+}: { label: string; hint: string; value: number; onChange: (v: number) => void, currency?: string }) {
     const displayVal = (value / 100).toFixed(0);
     return (
         <div className="flex flex-col gap-1">
@@ -78,7 +78,7 @@ function CentsInput({
                         <Minus className="w-3 h-3" />
                     </button>
                     <div className="flex items-center w-full px-3">
-                        <span className="text-muted-foreground/50 text-xs mr-1">$</span>
+                        <span className="text-muted-foreground/50 text-xs mr-1">{currency === "USD" ? "$" : currency}</span>
                         <input
                             type="number"
                             step="1000"
@@ -103,20 +103,21 @@ function CentsInput({
 // ── Statement row helper ──────────────────────────────────────────────────────
 
 function StatRow({
-    label, values, highlight = false, indent = false, dimmed = false,
+    label, values, highlight = false, indent = false, dimmed = false, currency = "USD"
 }: {
     label: string;
     values: (number | null)[];
     highlight?: boolean;
     indent?: boolean;
     dimmed?: boolean;
+    currency?: string;
 }) {
     return (
         <tr className={`border-b border-border/40 ${highlight ? "bg-primary/5 font-semibold" : dimmed ? "opacity-60" : "hover:bg-white/3"} transition-colors`}>
             <td className={`py-3 px-4 text-sm ${indent ? "pl-8 text-muted-foreground" : "text-foreground font-medium"}`}>{label}</td>
             {values.map((v, i) => (
                 <td key={i} className={`py-3 px-4 text-right font-mono text-sm ${v !== null && v < 0 ? "text-rose-400" : "text-foreground"}`}>
-                    {v === null ? "—" : formatCurrency(v)}
+                    {v === null ? "—" : formatCurrency(v, currency)}
                 </td>
             ))}
         </tr>
@@ -188,12 +189,14 @@ export default function ForecastPage() {
     const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-    const { data: companies, isLoading: isCompaniesLoading } = useQuery({
+    const { data: companies } = useQuery({
         queryKey: ["companies"],
         queryFn: getCompanies
     });
 
-    const companyId = companies?.[0]?.id;
+    const company = companies?.[0];
+    const companyId = company?.id;
+    const currency = company?.currency || "USD";
 
     const { data: periods = [] } = useQuery<string[]>({
         queryKey: ["periods", companyId],
@@ -221,7 +224,8 @@ export default function ForecastPage() {
         retry: false,
     });
     useEffect(() => {
-        if (savedConfig) {
+        // If config is "new" (placeholder from backend) or non-existent, apply current scenario defaults
+        if (savedConfig && savedConfig.id !== "new") {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setCfg(savedConfig);
         } else {
@@ -679,15 +683,15 @@ export default function ForecastPage() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border/30">
-                                                <StatRow label="Revenue" values={[actuals!.revenue_cents, ...projections.map((p: { revenue_cents: number }) => p.revenue_cents)]} />
-                                                <StatRow label="COGS" indent values={[null, ...projections.map((p: { cogs_cents: number }) => -p.cogs_cents)]} dimmed />
-                                                <StatRow label="Gross Profit" values={[null, ...projections.map((p: { gross_profit_cents: number }) => p.gross_profit_cents)]} />
-                                                <StatRow label="Operating Expenses" indent values={[actuals!.expenses_cents, ...projections.map((p: { opex_cents: number }) => -p.opex_cents)]} dimmed />
-                                                <StatRow label="EBITDA" values={[null, ...projections.map((p: { ebitda_cents: number }) => p.ebitda_cents)]} />
-                                                <StatRow label="D&A" indent values={[null, ...projections.map((p: { da_cents: number }) => -p.da_cents)]} dimmed />
-                                                <StatRow label="EBIT" values={[null, ...projections.map((p: { ebit_cents: number }) => p.ebit_cents)]} />
-                                                <StatRow label="Tax" indent values={[null, ...projections.map((p: { tax_cents: number }) => -p.tax_cents)]} dimmed />
-                                                <StatRow label="Net Income" values={[actuals!.net_income_cents, ...projections.map((p: { net_income_cents: number }) => p.net_income_cents)]} highlight />
+                                                <StatRow currency={currency} label="Revenue" values={[actuals!.revenue_cents, ...projections.map((p: { revenue_cents: number }) => p.revenue_cents)]} />
+                                                <StatRow currency={currency} label="COGS" indent values={[null, ...projections.map((p: { cogs_cents: number }) => -p.cogs_cents)]} dimmed />
+                                                <StatRow currency={currency} label="Gross Profit" values={[null, ...projections.map((p: { gross_profit_cents: number }) => p.gross_profit_cents)]} />
+                                                <StatRow currency={currency} label="Operating Expenses" indent values={[actuals!.expenses_cents, ...projections.map((p: { opex_cents: number }) => -p.opex_cents)]} dimmed />
+                                                <StatRow currency={currency} label="EBITDA" values={[null, ...projections.map((p: { ebitda_cents: number }) => p.ebitda_cents)]} />
+                                                <StatRow currency={currency} label="D&A" indent values={[null, ...projections.map((p: { da_cents: number }) => -p.da_cents)]} dimmed />
+                                                <StatRow currency={currency} label="EBIT" values={[null, ...projections.map((p: { ebit_cents: number }) => p.ebit_cents)]} />
+                                                <StatRow currency={currency} label="Tax" indent values={[null, ...projections.map((p: { tax_cents: number }) => -p.tax_cents)]} dimmed />
+                                                <StatRow currency={currency} label="Net Income" values={[actuals!.net_income_cents, ...projections.map((p: { net_income_cents: number }) => p.net_income_cents)]} highlight />
                                             </tbody>
                                         </table>
                                     </div>
@@ -715,16 +719,16 @@ export default function ForecastPage() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border/30">
-                                                <StatRow label="Net Income" values={[actuals!.net_income_cents, ...projections.map((p: { net_income_cf_cents: number }) => p.net_income_cf_cents)]} />
-                                                <StatRow label="D&A (Add-back)" indent values={[null, ...projections.map((p: { da_cents: number }) => p.da_cents)]} dimmed />
-                                                <StatRow label="Δ Net Working Capital" indent values={[null, ...projections.map((p: { delta_wc_cents: number }) => p.delta_wc_cents)]} dimmed />
-                                                <StatRow label="Cash from Operations" values={[null, ...projections.map((p: { net_cash_from_operations_cents: number }) => p.net_cash_from_operations_cents)]} highlight />
-                                                <StatRow label="CapEx" indent values={[null, ...projections.map((p: { capex_cents: number }) => p.capex_cents)]} dimmed />
-                                                <StatRow label="Cash from Investing" values={[null, ...projections.map((p: { net_cash_from_investing_cents: number }) => p.net_cash_from_investing_cents)]} />
-                                                <StatRow label="Cash from Financing" values={[null, ...projections.map((p: { net_cash_from_financing_cents: number }) => p.net_cash_from_financing_cents)]} />
-                                                <StatRow label="Net Change in Cash" values={[null, ...projections.map((p: { net_change_in_cash_cents: number }) => p.net_change_in_cash_cents)]} />
-                                                <StatRow label="Beginning Cash" indent values={[actuals!.cash_cents, ...projections.map((p: { beginning_cash_cents: number }) => p.beginning_cash_cents)]} dimmed />
-                                                <StatRow label="Ending Cash" values={[actuals!.cash_cents, ...projections.map((p: { ending_cash_cents: number }) => p.ending_cash_cents)]} highlight />
+                                                <StatRow currency={currency} label="Net Income" values={[actuals!.net_income_cents, ...projections.map((p: { net_income_cf_cents: number }) => p.net_income_cf_cents)]} />
+                                                <StatRow currency={currency} label="D&A (Add-back)" indent values={[null, ...projections.map((p: { da_cents: number }) => p.da_cents)]} dimmed />
+                                                <StatRow currency={currency} label="Δ Net Working Capital" indent values={[null, ...projections.map((p: { delta_wc_cents: number }) => p.delta_wc_cents)]} dimmed />
+                                                <StatRow currency={currency} label="Cash from Operations" values={[null, ...projections.map((p: { net_cash_from_operations_cents: number }) => p.net_cash_from_operations_cents)]} highlight />
+                                                <StatRow currency={currency} label="CapEx" indent values={[null, ...projections.map((p: { capex_cents: number }) => p.capex_cents)]} dimmed />
+                                                <StatRow currency={currency} label="Cash from Investing" values={[null, ...projections.map((p: { net_cash_from_investing_cents: number }) => p.net_cash_from_investing_cents)]} />
+                                                <StatRow currency={currency} label="Cash from Financing" values={[null, ...projections.map((p: { net_cash_from_financing_cents: number }) => p.net_cash_from_financing_cents)]} />
+                                                <StatRow currency={currency} label="Net Change in Cash" values={[null, ...projections.map((p: { net_change_in_cash_cents: number }) => p.net_change_in_cash_cents)]} />
+                                                <StatRow currency={currency} label="Beginning Cash" indent values={[actuals!.cash_cents, ...projections.map((p: { beginning_cash_cents: number }) => p.beginning_cash_cents)]} dimmed />
+                                                <StatRow currency={currency} label="Ending Cash" values={[actuals!.cash_cents, ...projections.map((p: { ending_cash_cents: number }) => p.ending_cash_cents)]} highlight />
                                             </tbody>
                                         </table>
                                     </div>

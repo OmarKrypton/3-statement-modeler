@@ -25,10 +25,9 @@ center_align = Alignment(horizontal="center", wrap_text=True, vertical="center")
 bottom_border = Border(bottom=Side(style='thin', color="CCCCCC"))
 all_border = Border(bottom=Side(style='thin', color="EEEEEE"), top=Side(style='thin', color="EEEEEE"))
 header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-number_format = '_($* #,##0_);_($* (#,##0);_($* "-"_);_(@_)' 
-# We'll use a slightly cleaner version to ensure brackets are obvious
-# Standard Excel Accounting format (with brackets for negatives and $ alignment)
-accounting_format = '_("$"* #,##0_);_("$"* (#,##0);_("$"* "-"_);_(@_)'
+# Standard Excel Accounting format template
+# We'll replace the $ with the actual currency symbol at runtime
+ACCOUNTING_FORMAT_TEMPLATE = '_("{symbol}"* #,##0_);_("{symbol}"* (#,##0);_("{symbol}"* "-"_);_(@_)'
 
 def add_title(sheet, title_text, col_span):
     sheet.append([title_text])
@@ -48,10 +47,10 @@ def add_header(sheet, columns):
         if cell.column > 1:
             cell.alignment = center_align
 
-def format_row(sheet, row_idx, is_bold=False):
+def format_row(sheet, row_idx, symbol="$", is_bold=False):
     for cell in sheet[row_idx]:
         if cell.column > 1:
-            cell.number_format = accounting_format
+            cell.number_format = ACCOUNTING_FORMAT_TEMPLATE.format(symbol=symbol)
         if is_bold:
             cell.font = bold_font
 
@@ -64,6 +63,13 @@ def export_forecast_excel(
     include_cf: bool = True,
     db: Session = Depends(get_db)
 ):
+    from ..models import Company
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    currency_symbol = company.currency if company.currency != "USD" else "$"
+
     # 1. Fetch data dictionary from the existing forecasting engine
     data = get_forecast_statements(company_id, scenario, db)
     
@@ -102,19 +108,19 @@ def export_forecast_excel(
         ws_is.append(["Revenue"] + r(actuals.get("revenue_cents", 0) / 100.0, "revenue_cents"))
         ws_is.append(["COGS"] + r(-(actuals.get("revenue_cents", 0)*0 / 100.0), "cogs_cents", flip_sign=True)) # Just ensuring logic
         ws_is.append(["Gross Profit"] + r(0, "gross_profit_cents"))
-        format_row(ws_is, ws_is.max_row, is_bold=True)
+        format_row(ws_is, ws_is.max_row, symbol=currency_symbol, is_bold=True)
         
         ws_is.append(["Operating Expenses"] + r(-(actuals.get("expenses_cents", 0) / 100.0), "opex_cents", flip_sign=True))
         ws_is.append(["EBITDA"] + r(0, "ebitda_cents"))
-        format_row(ws_is, ws_is.max_row, is_bold=True)
+        format_row(ws_is, ws_is.max_row, symbol=currency_symbol, is_bold=True)
         
         ws_is.append(["D&A"] + r(0, "da_cents", flip_sign=True))
         ws_is.append(["EBIT"] + r(0, "ebit_cents"))
-        format_row(ws_is, ws_is.max_row, is_bold=True)
+        format_row(ws_is, ws_is.max_row, symbol=currency_symbol, is_bold=True)
         
         ws_is.append(["Tax"] + r(0, "tax_cents", flip_sign=True))
         ws_is.append(["Net Income"] + r(actuals.get("net_income_cents", 0) / 100.0, "net_income_cents"))
-        format_row(ws_is, ws_is.max_row, is_bold=True)
+        format_row(ws_is, ws_is.max_row, symbol=currency_symbol, is_bold=True)
     
     # ── BALANCE SHEET (Placeholder for now, but following the pattern) ──
     if include_bs:
@@ -206,6 +212,13 @@ def export_actuals_excel(
     include_cf: bool = True,
     db: Session = Depends(get_db)
 ):
+    from ..models import Company
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    currency_symbol = company.currency if company.currency != "USD" else "$"
+
     # Convert string periods to date objects
     try:
         period_list = [date.fromisoformat(p) for p in periods.split(",")]
@@ -270,7 +283,7 @@ def export_actuals_excel(
                 if key in ["total_liabilities_cents", "total_equity_cents"]: val = -val
                 row.append(val)
             ws.append(row)
-            format_row(ws, ws.max_row, is_bold=True)
+            format_row(ws, ws.max_row, symbol=currency_symbol, is_bold=True)
 
     if include_cf:
         ws = wb.create_sheet("Cash Flow")

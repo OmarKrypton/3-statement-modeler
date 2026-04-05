@@ -5,26 +5,29 @@ frontend/out/
 frontend/.next/
 frontend/.env.local
 frontend/.env.*.local
+frontend/.venv/
 frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
 
 # ── Python / Backend ──────────────────────────────────────────────────────────
-__pycache__/
-backend/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
 .venv/
 backend/.venv/
 backend/dist/
 backend/build/
 backend/static/
-threestatement.db
-backend/threestatement.db
+*.db
+backend/*.db
+backend/*.spec
 backend/uvicorn.log
 
 # ── Rust / Tauri ──────────────────────────────────────────────────────────────
 tauri/src-tauri/target/
 tauri/src-tauri/binaries/
 tauri/src-tauri/icons/
+tauri/src-tauri/gen/
 tauri/src-tauri/.tauri/
 
 # ── Arch Linux Packaging ──────────────────────────────────────────────────────
@@ -39,6 +42,8 @@ tauri/src-tauri/.tauri/
 .idea/
 *.swp
 *.swo
+.env
+.env.*
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
