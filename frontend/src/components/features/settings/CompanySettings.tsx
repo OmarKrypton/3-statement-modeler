@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCompanies, updateCompany } from "@/lib/api";
 import { Save, Building2, Calendar, Globe } from "lucide-react";
-import { CustomSelect } from "@/components/ui/CustomSelect";
+import { CustomSelect } from "../../ui/CustomSelect";
 
 const MONTHS = [
     { value: "1", label: "January" },
