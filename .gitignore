@@ -17,7 +17,6 @@ backend/.venv/
 backend/dist/
 backend/build/
 backend/static/
-backend/3sm.spec
 threestatement.db
 backend/threestatement.db
 backend/uvicorn.log
