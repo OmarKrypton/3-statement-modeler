@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUnmappedAccounts, getMasterCoA, saveMappings, resetMappings, getCompanies } from "@/lib/api";
 import { CompanyAccount, MasterAccount } from "@/types";
 import { ArrowLeftRight, Check, AlertCircle, Save, RotateCcw, Loader2 } from "lucide-react";
-import { CustomSelect } from "../../components/ui/CustomSelect";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 export default function MappingPage() {
     const queryClient = useQueryClient();

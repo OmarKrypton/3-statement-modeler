@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadTrialBalance, getPeriods, deletePeriod, getCompanies } from "@/lib/api";
 import { AxiosError } from "axios";
 import { Loader2 } from "lucide-react";
-import { CustomDatePicker } from "../ui/CustomDatePicker";
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 export function TbUploader() {
     const { data: companies, isLoading: isCompaniesLoading } = useQuery({

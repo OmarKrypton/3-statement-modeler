@@ -16,7 +16,7 @@ import {
 import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle, Share, Loader2, RotateCcw, Plus, Minus, Trash2 } from "lucide-react";
 import ExportModal from "@/components/features/export/ExportModal";
 import { formatCurrency } from "@/lib/utils";
-import { CustomSelect } from "../../components/ui/CustomSelect";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 // Dynamic Company Context will be resolved within the component
 
