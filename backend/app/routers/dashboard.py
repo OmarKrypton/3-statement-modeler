@@ -14,19 +14,19 @@ router = APIRouter(
 )
 
 @router.get("/summary")
-def get_dashboard_summary(company_id: str, db: Session = Depends(get_db)):
+def get_dashboard_summary(company_id: str, scenario: str = "base", db: Session = Depends(get_db)):
     # 1. Get historical periods
     historical_dates = get_periods(company_id, db)
     historical_dates.sort()
-
+ 
     # 2. Fetch Statements
     is_actuals = get_income_statement(company_id, historical_dates, db)
     cf_actuals = get_cash_flow(company_id, historical_dates, db)
 
-    # 3. Fetch Forecast (Base)
+    # 3. Fetch Forecast (Dynamic Scenario)
     projections = []
     try:
-        forecast_data = get_forecast_statements(company_id, "base", db)
+        forecast_data = get_forecast_statements(company_id, scenario, db)
         projections = forecast_data.get("projections", [])
     except:
         pass

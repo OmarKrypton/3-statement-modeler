@@ -2,20 +2,26 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUnmappedAccounts, getMasterCoA, saveMappings, resetMappings } from "@/lib/api";
+import { getUnmappedAccounts, getMasterCoA, saveMappings, resetMappings, getCompanies } from "@/lib/api";
 import { CompanyAccount, MasterAccount } from "@/types";
-import { ArrowLeftRight, Check, AlertCircle, Save, RotateCcw } from "lucide-react";
-
-// Hardcoded for MVP
-const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
+import { ArrowLeftRight, Check, AlertCircle, Save, RotateCcw, Loader2 } from "lucide-react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 export default function MappingPage() {
     const queryClient = useQueryClient();
     const [localMappings, setLocalMappings] = useState<Record<string, string>>({});
 
+    const { data: companies, isLoading: isCompaniesLoading } = useQuery({
+        queryKey: ["companies"],
+        queryFn: getCompanies
+    });
+
+    const companyId = companies?.[0]?.id;
+
     const { data: unmappedAccounts, isLoading: isLoadingUnmapped } = useQuery<CompanyAccount[]>({
-        queryKey: ["unmapped", ACME_CORP_ID],
-        queryFn: () => getUnmappedAccounts(ACME_CORP_ID),
+        queryKey: ["unmapped", companyId],
+        queryFn: () => getUnmappedAccounts(companyId!),
+        enabled: !!companyId,
     });
 
     const { data: masterAccounts, isLoading: isLoadingMaster } = useQuery<MasterAccount[]>({
@@ -25,18 +31,18 @@ export default function MappingPage() {
 
     const saveMutation = useMutation({
         mutationFn: (mappingsArray: { company_account_id: string; master_account_id: string }[]) =>
-            saveMappings(ACME_CORP_ID, mappingsArray),
+            saveMappings(companyId!, mappingsArray),
         onSuccess: () => {
             setLocalMappings({});
-            queryClient.invalidateQueries({ queryKey: ["unmapped", ACME_CORP_ID] });
+            queryClient.invalidateQueries({ queryKey: ["unmapped", companyId] });
         },
     });
 
     const resetMutation = useMutation({
-        mutationFn: () => resetMappings(ACME_CORP_ID),
+        mutationFn: () => resetMappings(companyId!),
         onSuccess: () => {
             setLocalMappings({});
-            queryClient.invalidateQueries({ queryKey: ["unmapped", ACME_CORP_ID] });
+            queryClient.invalidateQueries({ queryKey: ["unmapped", companyId] });
         }
     });
 
@@ -58,8 +64,13 @@ export default function MappingPage() {
         }
     };
 
-    if (isLoadingUnmapped || isLoadingMaster) {
-        return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading mapping engine...</div>;
+    if (isCompaniesLoading || isLoadingUnmapped || isLoadingMaster) {
+        return (
+            <div className="flex flex-col items-center justify-center p-24 text-center animate-pulse">
+                <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                <p className="text-muted-foreground">Initializing mapping engine...</p>
+            </div>
+        );
     }
 
     return (
@@ -145,27 +156,20 @@ export default function MappingPage() {
                                                 <span className={`mt-1.5 inline-block text-[10px] font-mono px-2 py-0.5 rounded border ${isDebit ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
                                                     {isDebit ? '+' : ''}{absDisplay}
                                                 </span>
+                                            </div>                                            {/* Premium Custom Dropdown */}
+                                            <div className="w-64">
+                                                <CustomSelect
+                                                    options={masterAccounts?.map(m => ({
+                                                        value: m.id,
+                                                        label: `${m.account_code} - ${m.name}`,
+                                                        group: m.category
+                                                    })) || []}
+                                                    value={localMappings[acc.id] || ""}
+                                                    onChange={(val) => handleMap(acc.id, val)}
+                                                    placeholder="Select mapping..."
+                                                    searchable={true}
+                                                />
                                             </div>
-
-                                            {/* Master Dropdown Selector */}
-                                            <select
-                                                className="bg-black/40 border border-border text-sm rounded-md px-3 py-2 text-foreground focus:ring-primary focus:border-primary w-48"
-                                                value={localMappings[acc.id] || ""}
-                                                onChange={(e) => handleMap(acc.id, e.target.value)}
-                                            >
-                                                <option value="" disabled>Select mapping...</option>
-
-                                                {/* Group Master Accounts by Category */}
-                                                {["REVENUE", "EXPENSE", "ASSET", "LIABILITY", "EQUITY"].map(cat => (
-                                                    <optgroup key={cat} label={cat}>
-                                                        {masterAccounts?.filter(m => m.category === cat).map(m => (
-                                                            <option key={m.id} value={m.id}>
-                                                                {m.account_code} - {m.name}
-                                                            </option>
-                                                        ))}
-                                                    </optgroup>
-                                                ))}
-                                            </select>
                                         </div>
                                     </div>
                                 )

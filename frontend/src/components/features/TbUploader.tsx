@@ -3,14 +3,19 @@
 import { useState } from "react";
 import { UploadCloud, FileType, CheckCircle, AlertCircle, Calendar, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { uploadTrialBalance, getPeriods, deletePeriod } from "@/lib/api";
+import { uploadTrialBalance, getPeriods, deletePeriod, getCompanies } from "@/lib/api";
 import { AxiosError } from "axios";
-
-// We hardcode the Acme Corp ID for this prototype layout, 
-// usually this comes from context or a dropdown selector.
-const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
+import { Loader2 } from "lucide-react";
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker";
 
 export function TbUploader() {
+    const { data: companies, isLoading: isCompaniesLoading } = useQuery({
+        queryKey: ["companies"],
+        queryFn: getCompanies
+    });
+
+    const companyId = companies?.[0]?.id;
+
     const [file, setFile] = useState<File | null>(null);
     const [periodDate, setPeriodDate] = useState("2024-01-31");
     const [errorText, setErrorText] = useState("");
@@ -20,31 +25,36 @@ export function TbUploader() {
     const queryClient = useQueryClient();
 
     const { data: importedPeriods = [], isLoading: isPeriodsLoading } = useQuery<string[]>({
-        queryKey: ["periods", ACME_CORP_ID],
-        queryFn: () => getPeriods(ACME_CORP_ID),
+        queryKey: ["periods", companyId],
+        queryFn: () => getPeriods(companyId!),
+        enabled: !!companyId,
     });
 
     const uploadMutation = useMutation({
-        mutationFn: (fileToUpload: File) => uploadTrialBalance(ACME_CORP_ID, periodDate, fileToUpload),
+        mutationFn: (fileToUpload: File) => uploadTrialBalance(companyId!, periodDate, fileToUpload),
         onSuccess: (data: { status: string; message: string; is_balanced: boolean; warning?: string }) => {
             setFile(null);
             setErrorText("");
             setWarningText(data.warning || "");
-            queryClient.invalidateQueries({ queryKey: ["periods", ACME_CORP_ID] });
-            queryClient.invalidateQueries({ queryKey: ["unmapped", ACME_CORP_ID] });
+            queryClient.invalidateQueries({ queryKey: ["periods", companyId] });
+            queryClient.invalidateQueries({ queryKey: ["unmapped", companyId] });
         },
-        onError: (err: AxiosError<{ detail: string }>) => {
-            setErrorText(err.response?.data?.detail || "An error occurred during upload.");
+        onError: (err: any) => {
+            console.error("Upload error:", err);
+            const status = err.response?.status;
+            const detail = err.response?.data?.detail;
+            const message = detail || err.message || "An error occurred during upload.";
+            setErrorText(`Error ${status || ""}: ${message}`);
             setWarningText("");
         }
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (p: string) => deletePeriod(ACME_CORP_ID, p),
+        mutationFn: (p: string) => deletePeriod(companyId!, p),
         onSuccess: () => {
             setDeletingPeriod(null);
-            queryClient.invalidateQueries({ queryKey: ["periods", ACME_CORP_ID] });
-            queryClient.invalidateQueries({ queryKey: ["unmapped", ACME_CORP_ID] });
+            queryClient.invalidateQueries({ queryKey: ["periods", companyId] });
+            queryClient.invalidateQueries({ queryKey: ["unmapped", companyId] });
         },
     });
 
@@ -68,6 +78,15 @@ export function TbUploader() {
         }
     };
 
+    if (isCompaniesLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 glass-card rounded-xl">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground italic">Initializing company data...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
             {/* Upload Card */}
@@ -76,16 +95,14 @@ export function TbUploader() {
                     <div className="flex-1">
                         <label className="block text-sm font-medium text-muted-foreground mb-1">Company Context</label>
                         <div className="px-3 py-2 bg-white/5 border border-border rounded-md text-foreground cursor-not-allowed">
-                            Acme Corp (Demo)
+                            {companies?.[0]?.name || "Loading..."}
                         </div>
                     </div>
                     <div className="flex-1">
                         <label className="block text-sm font-medium text-muted-foreground mb-1">Period Ending</label>
-                        <input
-                            type="date"
+                        <CustomDatePicker 
                             value={periodDate}
-                            onChange={(e) => setPeriodDate(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                            onChange={setPeriodDate}
                         />
                     </div>
                 </div>
@@ -110,7 +127,7 @@ export function TbUploader() {
                                 <UploadCloud className="h-8 w-8 text-primary" />
                             </div>
                             <p className="text-lg font-medium text-foreground">Click to upload or drag and drop</p>
-                            <p className="text-sm text-muted-foreground mt-1">CSV files only (Account Number, Name, Balance in cents)</p>
+                            <p className="text-sm text-muted-foreground mt-1">Supports standard CSV exports (Decimals, Currency, Semicolons handled automatically)</p>
                         </label>
                     ) : (
                         <div className="flex flex-col items-center">

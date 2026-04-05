@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// Assume backend is running on localhost:8000 by default during dev
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// Use relative path by default so it works regardless of the port or hostname
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 export const api = axios.create({
     baseURL: API_URL,
@@ -113,12 +113,17 @@ export const saveForecastConfig = async (companyId: string, config: ForecastConf
     return data;
 };
 
+export const deleteForecastConfig = async (companyId: string, scenario: string = "base") => {
+    const { data } = await api.delete(`/companies/${companyId}/forecast/config?scenario=${scenario}`);
+    return data;
+};
+
 export const getForecastStatements = async (companyId: string, scenario: string = "base") => {
     const { data } = await api.get(`/companies/${companyId}/forecast/statements?scenario=${scenario}`);
     return data;
 };
 
-export const getDashboardSummary = async (companyId: string) => {
-    const { data } = await api.get(`/companies/${companyId}/dashboard/summary`);
+export const getDashboardSummary = async (companyId: string, scenario: string = "base") => {
+    const { data } = await api.get(`/companies/${companyId}/dashboard/summary?scenario=${scenario}`);
     return data;
 };

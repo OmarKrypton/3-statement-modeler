@@ -2,24 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPeriods, getIncomeStatement, getBalanceSheet, getCashFlow } from "@/lib/api";
+import { getPeriods, getIncomeStatement, getBalanceSheet, getCashFlow, getCompanies } from "@/lib/api";
 import { StatementResult, BalanceSheetResult, CashFlowResult } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle, CheckSquare, Square, Share } from "lucide-react";
+import { Building2, Calendar as CalendarIcon, FileText, Scale, TrendingUp, AlertCircle, CheckSquare, Square, Share, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import ExportModal from "@/components/features/export/ExportModal";
 
-// Hardcoded for MVP
-const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
-
 export default function StatementsPage() {
+    const { data: companies, isLoading: isCompaniesLoading } = useQuery({
+        queryKey: ["companies"],
+        queryFn: getCompanies
+    });
+
+    const companyId = companies?.[0]?.id;
     const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
     const { data: availablePeriods, isLoading: isPeriodsLoading } = useQuery<string[]>({
-        queryKey: ["periods", ACME_CORP_ID],
-        queryFn: () => getPeriods(ACME_CORP_ID),
+        queryKey: ["periods", companyId],
+        queryFn: () => getPeriods(companyId!),
+        enabled: !!companyId,
     });
 
     // Auto-select latest period if none selected and data loaded
@@ -44,7 +48,7 @@ export default function StatementsPage() {
                 include_bs: selection.bs.toString(),
                 include_cf: selection.cf.toString(),
             });
-            window.open(`http://localhost:8000/api/v1/companies/${ACME_CORP_ID}/export/actuals/excel?${params.toString()}`);
+            window.open(`/api/v1/companies/${companyId}/export/actuals/excel?${params.toString()}`);
         } else {
             handleExportPDF(selection);
         }
@@ -165,21 +169,21 @@ export default function StatementsPage() {
     const hasSelection = selectedPeriods.length > 0;
 
     const { data: incomeStatement = [], isLoading, isError } = useQuery<StatementResult[]>({
-        queryKey: ["income-statement", ACME_CORP_ID, selectedPeriods],
-        queryFn: () => getIncomeStatement(ACME_CORP_ID, selectedPeriods),
-        enabled: hasSelection,
+        queryKey: ["income-statement", companyId, selectedPeriods],
+        queryFn: () => getIncomeStatement(companyId!, selectedPeriods),
+        enabled: hasSelection && !!companyId,
     });
 
     const { data: balanceSheet = [], isLoading: isBsLoading, isError: isBsError } = useQuery<BalanceSheetResult[]>({
-        queryKey: ["balance-sheet", ACME_CORP_ID, selectedPeriods],
-        queryFn: () => getBalanceSheet(ACME_CORP_ID, selectedPeriods),
-        enabled: hasSelection,
+        queryKey: ["balance-sheet", companyId, selectedPeriods],
+        queryFn: () => getBalanceSheet(companyId!, selectedPeriods),
+        enabled: hasSelection && !!companyId,
     });
 
     const { data: cashFlow = [], isLoading: isCfLoading, isError: isCfError } = useQuery<CashFlowResult[]>({
-        queryKey: ["cash-flow", ACME_CORP_ID, selectedPeriods],
-        queryFn: () => getCashFlow(ACME_CORP_ID, selectedPeriods),
-        enabled: hasSelection,
+        queryKey: ["cash-flow", companyId, selectedPeriods],
+        queryFn: () => getCashFlow(companyId!, selectedPeriods),
+        enabled: hasSelection && !!companyId,
     });
 
     const hasUnmapped = balanceSheet.some(bs => bs.unmapped_balance_cents !== 0);
@@ -220,7 +224,7 @@ export default function StatementsPage() {
                         <Building2 className="w-4 h-4 mr-2" /> Company
                     </label>
                     <div className="px-3 py-2 bg-white/5 border border-border rounded-md text-foreground cursor-not-allowed">
-                        Acme Corp (Demo)
+                        {companies?.[0]?.name || "Loading..."}
                     </div>
                 </div>
                 <div className="flex-1">

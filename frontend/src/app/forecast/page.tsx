@@ -10,12 +10,15 @@ import {
     saveForecastConfig,
     getForecastStatements,
     ForecastConfigPayload,
+    getCompanies,
+    deleteForecastConfig,
 } from "@/lib/api";
-import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle, Share } from "lucide-react";
+import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle, Share, Loader2, RotateCcw, Plus, Minus, Trash2 } from "lucide-react";
 import ExportModal from "@/components/features/export/ExportModal";
 import { formatCurrency } from "@/lib/utils";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
-const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
+// Dynamic Company Context will be resolved within the component
 
 // ── Assumption input field ────────────────────────────────────────────────────
 
@@ -27,14 +30,30 @@ function BpsInput({
         <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
             <div className="flex items-center gap-2">
-                <input
-                    type="number"
-                    step="0.01"
-                    value={displayVal}
-                    onChange={(e) => onChange(Math.round(parseFloat(e.target.value || "0") * 100))}
-                    className="w-full px-3 py-2 bg-white/5 border border-border rounded-md text-foreground font-mono text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-                <span className="text-muted-foreground text-sm shrink-0">%</span>
+                <div className="flex items-center bg-white/5 border border-border rounded-lg overflow-hidden flex-1">
+                    <button 
+                        onClick={() => onChange(Math.max(0, value - 50))}
+                        className="p-2 hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors border-r border-border"
+                    >
+                        <Minus className="w-3 h-3" />
+                    </button>
+                    <div className="flex items-center w-full px-3">
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={displayVal}
+                            onChange={(e) => onChange(Math.round(parseFloat(e.target.value || "0") * 100))}
+                            className="w-full py-1.5 bg-transparent text-foreground font-mono text-sm focus:outline-none no-spinner"
+                        />
+                        <span className="text-muted-foreground/50 text-[10px] font-bold uppercase ml-1">%</span>
+                    </div>
+                    <button 
+                        onClick={() => onChange(value + 50)}
+                        className="p-2 hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors border-l border-border"
+                    >
+                        <Plus className="w-3 h-3" />
+                    </button>
+                </div>
             </div>
             <p className="text-[11px] text-muted-foreground/70">{hint}</p>
         </div>
@@ -49,14 +68,30 @@ function CentsInput({
         <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
             <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm shrink-0">$</span>
-                <input
-                    type="number"
-                    step="1000"
-                    value={displayVal}
-                    onChange={(e) => onChange(Math.round(parseFloat(e.target.value || "0") * 100))}
-                    className="w-full px-3 py-2 bg-white/5 border border-border rounded-md text-foreground font-mono text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                />
+                 <div className="flex items-center bg-white/5 border border-border rounded-lg overflow-hidden flex-1">
+                    <button 
+                        onClick={() => onChange(Math.max(0, value - 100000))}
+                        className="p-2 hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors border-r border-border"
+                    >
+                        <Minus className="w-3 h-3" />
+                    </button>
+                    <div className="flex items-center w-full px-3">
+                        <span className="text-muted-foreground/50 text-xs mr-1">$</span>
+                        <input
+                            type="number"
+                            step="1000"
+                            value={displayVal}
+                            onChange={(e) => onChange(Math.round(parseFloat(e.target.value || "0") * 100))}
+                            className="w-full py-1.5 bg-transparent text-foreground font-mono text-sm focus:outline-none no-spinner text-right pr-1"
+                        />
+                    </div>
+                    <button 
+                        onClick={() => onChange(value + 100000)}
+                        className="p-2 hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors border-l border-border"
+                    >
+                        <Plus className="w-3 h-3" />
+                    </button>
+                </div>
             </div>
             <p className="text-[11px] text-muted-foreground/70">{hint}</p>
         </div>
@@ -109,15 +144,59 @@ export interface ForecastPeriod {
     ending_cash_cents: number;
 }
 
+const BASE_DEFAULTS: Omit<ForecastConfigPayload, 'scenario_name'> = {
+    base_period: null,
+    num_periods: 3,
+    revenue_growth_pct: 0,
+    cogs_pct_of_revenue: 0,
+    opex_growth_pct: 0,
+    tax_rate_pct: 2100,
+    capex_cents: 0,
+    da_cents: 0,
+    wc_pct_of_revenue: 0,
+};
+
+const BULL_DEFAULTS: Omit<ForecastConfigPayload, 'scenario_name'> = {
+    base_period: null,
+    num_periods: 3,
+    revenue_growth_pct: 1000, // 10%
+    cogs_pct_of_revenue: 5500, // 55% (Optimized)
+    opex_growth_pct: 200, // 2%
+    tax_rate_pct: 2100,
+    capex_cents: 5000000,
+    da_cents: 2000000,
+    wc_pct_of_revenue: 800, // 8%
+};
+
+const BEAR_DEFAULTS: Omit<ForecastConfigPayload, 'scenario_name'> = {
+    base_period: null,
+    num_periods: 3,
+    revenue_growth_pct: -500, // -5%
+    cogs_pct_of_revenue: 6500, // 65% (Compressed)
+    opex_growth_pct: 800, // 8%
+    tax_rate_pct: 2100,
+    capex_cents: 1000000,
+    da_cents: 1000000,
+    wc_pct_of_revenue: 1500, // 15%
+};
+
 export default function ForecastPage() {
     const queryClient = useQueryClient();
     const [openSection, setOpenSection] = useState<"is" | "cf" | null>("is");
     const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+    const { data: companies, isLoading: isCompaniesLoading } = useQuery({
+        queryKey: ["companies"],
+        queryFn: getCompanies
+    });
+
+    const companyId = companies?.[0]?.id;
+
     const { data: periods = [] } = useQuery<string[]>({
-        queryKey: ["periods", ACME_CORP_ID],
-        queryFn: () => getPeriods(ACME_CORP_ID),
+        queryKey: ["periods", companyId],
+        queryFn: () => getPeriods(companyId!),
+        enabled: !!companyId,
     });
 
     const [cfg, setCfg] = useState<ForecastConfigPayload>({
@@ -134,8 +213,9 @@ export default function ForecastPage() {
 
     // Try loading existing config for the current scenario
     const { data: savedConfig } = useQuery({
-        queryKey: ["forecast-config", ACME_CORP_ID, scenario],
-        queryFn: () => getForecastConfig(ACME_CORP_ID, scenario),
+        queryKey: ["forecast-config", companyId, scenario],
+        queryFn: () => getForecastConfig(companyId!, scenario),
+        enabled: !!companyId,
         retry: false,
     });
     useEffect(() => {
@@ -168,20 +248,40 @@ export default function ForecastPage() {
     }, [periods, cfg.base_period]);
 
     const saveMutation = useMutation({
-        mutationFn: () => saveForecastConfig(ACME_CORP_ID, { ...cfg, scenario_name: scenario }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["forecast-config", ACME_CORP_ID, scenario] }),
+        mutationFn: () => saveForecastConfig(companyId!, { ...cfg, scenario_name: scenario }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["forecast-config", companyId, scenario] }),
+    });
+
+    const clearMutation = useMutation({
+        mutationFn: () => deleteForecastConfig(companyId!, scenario),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["forecast-config", companyId, scenario] });
+            queryClient.invalidateQueries({ queryKey: ["forecast-statements", companyId, scenario] });
+        }
     });
 
     const { data: forecast, refetch: runForecast, isFetching, error: forecastError } = useQuery({
-        queryKey: ["forecast-statements", ACME_CORP_ID, scenario],
-        queryFn: () => getForecastStatements(ACME_CORP_ID, scenario),
-        enabled: !!savedConfig,
+        queryKey: ["forecast-statements", companyId, scenario],
+        queryFn: () => getForecastStatements(companyId!, scenario),
+        enabled: !!savedConfig && !!companyId,
         retry: false,
     });
 
     const handleRun = async () => {
         await saveMutation.mutateAsync();
         await runForecast();
+    };
+
+    const handleReset = () => {
+        let defaults = BASE_DEFAULTS;
+        if (scenario === "bull") defaults = BULL_DEFAULTS;
+        if (scenario === "bear") defaults = BEAR_DEFAULTS;
+
+        setCfg({
+            scenario_name: scenario,
+            ...defaults,
+            base_period: periods?.[0] || null
+        });
     };
 
     const handleExport = (format: "excel" | "pdf", selection: { is: boolean; bs: boolean; cf: boolean }) => {
@@ -192,7 +292,7 @@ export default function ForecastPage() {
                 include_bs: selection.bs.toString(),
                 include_cf: selection.cf.toString(),
             });
-            window.open(`http://localhost:8000/api/v1/companies/${ACME_CORP_ID}/export/excel?${params.toString()}`);
+            window.open(`/api/v1/companies/${companyId}/export/excel?${params.toString()}`);
         } else {
             handleExportPDF(selection);
         }
@@ -422,32 +522,37 @@ export default function ForecastPage() {
                             ))}
                         </div>
 
-                        {/* Base period */}
                         <div className="flex flex-col gap-1">
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Base Period</label>
-                            <select
-                                className="w-full px-3 py-2 bg-white/5 border border-border rounded-md text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                            <CustomSelect
+                                options={periods.map(p => ({ value: p, label: p }))}
                                 value={cfg.base_period ?? ""}
-                                onChange={e => setCfg(prev => ({ ...prev, base_period: e.target.value || null }))}
-                            >
-                                <option value="" disabled>Select a period…</option>
-                                {periods.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
+                                onChange={val => setCfg(prev => ({ ...prev, base_period: val || null }))}
+                                placeholder="Select a period…"
+                                searchable={false}
+                            />
                             <p className="text-[11px] text-muted-foreground/70">Last actual period used as the starting point</p>
                         </div>
 
-                        {/* Num periods */}
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                Forecast Periods — <span className="text-primary">{cfg.num_periods}</span>
-                            </label>
-                            <input
-                                type="range" min={1} max={12} value={cfg.num_periods}
-                                onChange={e => setCfg(prev => ({ ...prev, num_periods: parseInt(e.target.value) }))}
-                                className="w-full accent-primary"
-                            />
-                            <div className="flex justify-between text-[11px] text-muted-foreground/50">
-                                <span>1</span><span>12</span>
+                         {/* Num periods */}
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-end">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Forecast Duration
+                                </label>
+                                <span className="text-sm font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                                    {cfg.num_periods} <span className="text-[10px] text-primary/70 uppercase ml-1">Periods</span>
+                                </span>
+                            </div>
+                            <div className="px-1 py-2">
+                                <input
+                                    type="range" min={1} max={12} value={cfg.num_periods}
+                                    onChange={e => setCfg(prev => ({ ...prev, num_periods: parseInt(e.target.value) }))}
+                                    className="w-full"
+                                />
+                                <div className="flex justify-between mt-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">
+                                    <span>1 Period</span><span>12 Periods</span>
+                                </div>
                             </div>
                         </div>
 
@@ -480,6 +585,27 @@ export default function ForecastPage() {
                             <Play className="w-4 h-4" />
                             {isFetching || saveMutation.isPending ? "Running…" : "Run Forecast"}
                         </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleReset}
+                                className="flex-1 py-2.5 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 border border-white/10 hover:bg-white/5 transition-all active:scale-[0.98] text-muted-foreground"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                Reset
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (confirm(`Are you sure you want to completely clear the ${scenario} forecast? This will remove all saved assumptions.`)) {
+                                        clearMutation.mutate();
+                                    }
+                                }}
+                                disabled={clearMutation.isPending}
+                                className="flex-1 py-2.5 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-400 transition-all active:scale-[0.98] disabled:opacity-50"
+                            >
+                                {clearMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                Clear
+                            </button>
+                        </div>
                         {saveMutation.isSuccess && !isFetching && (
                             <p className="text-xs text-center text-emerald-400 flex items-center justify-center gap-1">
                                 <Save className="w-3 h-3" /> Assumptions saved

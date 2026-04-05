@@ -127,8 +127,33 @@ def get_forecast_config(company_id: str, scenario: str = "base", db: Session = D
         models.ForecastConfig.scenario_name == scenario
     ).first()
     if not config:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No {scenario} forecast config found. Save one first.")
+        # Return a "new" placeholder config instead of 404 to keep console clean
+        return {
+            "id": "new",
+            "company_id": company_id,
+            "scenario_name": scenario,
+            "base_period": None,
+            "num_periods": 3,
+            "revenue_growth_pct": 0,
+            "cogs_pct_of_revenue": 0,
+            "opex_growth_pct": 0,
+            "tax_rate_pct": 2100,
+            "capex_cents": 0,
+            "da_cents": 0,
+            "wc_pct_of_revenue": 0,
+        }
     return config
+
+@router.delete("/config")
+def delete_forecast_config(company_id: str, scenario: str = "base", db: Session = Depends(get_db)):
+    config = db.query(models.ForecastConfig).filter(
+        models.ForecastConfig.company_id == company_id,
+        models.ForecastConfig.scenario_name == scenario
+    ).first()
+    if config:
+        db.delete(config)
+        db.commit()
+    return {"status": "success", "message": f"{scenario} forecast cleared."}
 
 @router.put("/config", response_model=ForecastConfigOut)
 def upsert_forecast_config(company_id: str, payload: ForecastConfigIn, db: Session = Depends(get_db)):
@@ -153,8 +178,15 @@ def get_forecast_statements(company_id: str, scenario: str = "base", db: Session
         models.ForecastConfig.company_id == company_id,
         models.ForecastConfig.scenario_name == scenario
     ).first()
+    
     if not config or not config.base_period:
-        raise HTTPException(status_code=400, detail="No forecast config or base_period set.")
+        # Return empty successful state instead of 400 to keep console clean
+        return {
+            "base_period": None,
+            "actuals": {"revenue_cents": 0, "expenses_cents": 0, "net_income_cents": 0, "cash_cents": 0, "net_wc_cents": 0},
+            "projections": [],
+            "config": None
+        }
 
     # Validate base_period exists
     period_exists = db.query(models.ReportingPeriod).filter(
@@ -162,7 +194,13 @@ def get_forecast_statements(company_id: str, scenario: str = "base", db: Session
         models.ReportingPeriod.period_date == config.base_period
     ).first()
     if not period_exists:
-        raise HTTPException(status_code=400, detail=f"Base period {config.base_period} has no imported trial balance.")
+        # Return empty state if period missing
+        return {
+            "base_period": str(config.base_period),
+            "actuals": {"revenue_cents": 0, "expenses_cents": 0, "net_income_cents": 0, "cash_cents": 0, "net_wc_cents": 0},
+            "projections": [],
+            "config": None
+        }
 
     actuals = _get_actuals(db, company_id, config.base_period)
 

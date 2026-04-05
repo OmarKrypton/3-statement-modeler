@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=3-Statement Modeler
+Comment=Automated 3-Statement Financial Modeler
+Exec=/usr/bin/3-statement-modeler %U
+Icon=/usr/share/pixmaps/3-statement-modeler.png
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupWMClass=three-statement-modeler
+Keywords=Finance;Accounting;Model;

@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardSummary, getCompanies } from "@/lib/api";
 import {
   AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar, Line
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar, Line, Cell, ReferenceLine
 } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import {
   TrendingUp, TrendingDown, DollarSign, Activity,
   ArrowRight, FileSpreadsheet, ListTree, PieChart,
@@ -31,10 +32,11 @@ export default function DashboardPage() {
   });
 
   const companyId = companies?.[0]?.id;
+  const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
 
   const { data: summary, isLoading } = useQuery<DashboardSummaryEntry[]>({
-    queryKey: ["dashboard-summary", companyId],
-    queryFn: () => getDashboardSummary(companyId!),
+    queryKey: ["dashboard-summary", companyId, scenario],
+    queryFn: () => getDashboardSummary(companyId!, scenario),
     enabled: !!companyId
   });
 
@@ -54,8 +56,23 @@ export default function DashboardPage() {
     return <GettingStartedGuide />;
   }
 
-  const latestActual = [...summary].filter(s => s.type === 'actual').pop();
-  const latest = latestActual || summary[0];
+  const latestActualIndex = summary.map(s => s.type).lastIndexOf('actual');
+  const latestActual = latestActualIndex !== -1 ? summary[latestActualIndex] : summary[0];
+  const latest = latestActual;
+
+  // Transform data for seamless transitions (overlap last actual with first forecast)
+  const chartData = summary.map((entry, index) => ({
+    ...entry,
+    revenueActual: entry.type === 'actual' ? entry.revenue : null,
+    revenueForecast: entry.type === 'forecast' ? entry.revenue : null,
+    // Bridge: The segment between last actual and first forecast needs BOTH values defined to connect
+    ebitdaActual: index <= latestActualIndex ? entry.ebitda : null,
+    ebitdaForecast: index >= latestActualIndex ? entry.ebitda : null,
+    cashActual: index <= latestActualIndex ? entry.cash : null,
+    cashForecast: index >= latestActualIndex ? entry.cash : null,
+  }));
+
+  const nowPeriod = latestActual?.period;
 
   return (
     <div className="flex flex-col gap-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -63,18 +80,43 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-gradient">Financial Dashboard</h1>
           <p className="mt-2 text-muted-foreground max-w-xl">
-            Visualizing performance across historical actuals and future projections.
-            Forecasts are based on the primary <span className="text-primary font-medium">Base</span> scenario.
+            Visualizing performance across historical actuals and future projections for the 
+            <span className={cn(
+              "ml-1 font-bold uppercase transition-colors tracking-widest text-[11px] px-2 py-0.5 rounded border",
+              scenario === "base" ? "text-primary border-primary/20 bg-primary/10" :
+              scenario === "bull" ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" :
+              "text-rose-400 border-rose-500/20 bg-rose-500/10"
+            )}>
+              {scenario === "base" ? "Standard Base" : scenario === "bull" ? "Optimistic Bull" : "Conservative Bear"}
+            </span> scenario.
           </p>
         </div>
-        <div className="flex gap-2">
-          <div className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            Actuals
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex p-1 bg-white/5 border border-border rounded-xl backdrop-blur-md">
+            {(["base", "bull", "bear"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScenario(s)}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-widest",
+                  scenario === s 
+                    ? "bg-primary text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {s}
+              </button>
+            ))}
           </div>
-          <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-400 flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-            Forecast
+          <div className="flex gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+              <span className="text-xs font-semibold text-slate-300">Actuals</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full border-2 border-dashed border-purple-500" />
+              <span className="text-xs font-semibold text-slate-300">Forecast</span>
+            </div>
           </div>
         </div>
       </header>
@@ -109,98 +151,221 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Revenue & EBITDA Composed Chart */}
-        <div className="glass-card rounded-xl p-6 border border-white/5 shadow-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              Revenue & EBITDA Trajectory
-              <TooltipIcon text="Bars represent Revenue, Line represents EBITDA (Operating Profit)" />
-            </h3>
+        <div className="glass-card rounded-2xl p-8 border border-white/5 shadow-2xl relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 opacity-50 rounded-t-2xl" />
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                Revenue & Profitability
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">Industrial-grade trajectory visualization</p>
+            </div>
+            <TooltipIcon text="Bars: Revenue | Solid Line: Historical EBITDA | Dashed: Forecast EBITDA" />
           </div>
-          <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={summary} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.3} />
+          <div className="h-[300px] w-full min-h-0 min-w-0">
+            <ResponsiveContainer width="99%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                <defs>
+                   <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.15} />
                 <XAxis
                   dataKey="period"
-                  stroke="#94a3b8"
-                  fontSize={11}
+                  stroke="#64748b"
+                  fontSize={10}
+                  fontWeight={600}
                   tickLine={false}
                   axisLine={false}
                   tick={{ dy: 10 }}
                 />
                 <YAxis
-                  stroke="#94a3b8"
-                  fontSize={11}
+                  stroke="#64748b"
+                  fontSize={10}
+                  fontWeight={600}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(val) => `$${(val / 100000).toFixed(0)}k`}
                 />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.4)', padding: '12px' }}
-                  itemStyle={{ fontSize: '12px', padding: '2px 0' }}
-                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                  formatter={(val: number | string | (number | string)[] | undefined) => formatCurrency(Number(val ?? 0))}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const type = payload[0].payload.type;
+                      return (
+                        <div className="bg-slate-950/90 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-4 min-w-[200px] animate-in fade-in zoom-in-95 duration-200">
+                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                            <p className="text-sm font-black text-white uppercase tracking-tighter">{label}</p>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${type === 'actual' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'}`}>
+                              {type}
+                            </span>
+                          </div>
+                          {payload.filter(p => p.value !== null).map((entry, index) => {
+                            // Smart-hide forecasted duplicate at the bridge point
+                            const isForecastDuplicate = entry.name?.toString().includes("Forecast") && 
+                                                        payload.some(p => p.value !== null && p.name === entry.name?.toString().replace(" (Forecast)", ""));
+                            if (isForecastDuplicate) return null;
+
+                            return (
+                              <div key={index} className="flex items-center justify-between py-1.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full shadow-[0_0_5px_rgba(255,255,255,0.3)]" style={{ backgroundColor: entry.color }} />
+                                  <span className="text-[11px] font-medium text-slate-400">{(String(entry.name || "")).split(' (')[0]}</span>
+                                </div>
+                                <span className="text-[11px] font-mono font-bold text-white">{formatCurrency(Number(entry.value))}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                  cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                 />
-                <Legend
-                  verticalAlign="top"
-                  align="right"
-                  height={36}
-                  iconType="circle"
-                  formatter={(value) => <span className="text-xs font-medium text-muted-foreground ml-1">{value}</span>}
+                {nowPeriod && (
+                  <ReferenceLine x={nowPeriod} stroke="#64748b" strokeDasharray="3 3" label={{ position: 'top', value: 'NOW', fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} />
+                )}
+                <Bar name="Revenue" dataKey="revenue" radius={[4, 4, 0, 0]} barSize={32}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`bar-${index}`} 
+                      fill={entry.type === 'actual' ? '#3b82f6' : '#6366f1'} 
+                      fillOpacity={entry.type === 'actual' ? 0.9 : 0.3}
+                      stroke={entry.type === 'actual' ? 'none' : '#818cf8'}
+                      strokeWidth={entry.type === 'actual' ? 0 : 1}
+                      strokeDasharray={entry.type === 'actual' ? "0" : "3 2"}
+                    />
+                  ))}
+                </Bar>
+                <Line
+                  name="EBITDA"
+                  type="monotone"
+                  dataKey="ebitdaActual"
+                  stroke="#a78bfa"
+                  strokeWidth={4}
+                  dot={{ r: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
+                  filter="url(#glow)"
+                  connectNulls={false}
                 />
-                <Bar name="Revenue" dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={28} />
-                <Line name="EBITDA" type="monotone" dataKey="ebitda" stroke="#a78bfa" strokeWidth={3} dot={{ r: 4, fill: '#a78bfa', strokeWidth: 2, stroke: '#1e293b' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                <Line
+                  name="EBITDA (Forecast)"
+                  type="monotone"
+                  dataKey="ebitdaForecast"
+                  stroke="#a78bfa"
+                  strokeWidth={3}
+                  strokeDasharray="8 6"
+                  dot={{ r: 0 }}
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
+                  connectNulls={false}
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Cash Trajectory Area Chart */}
-        <div className="glass-card rounded-xl p-6 border border-white/5 shadow-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              Liquidity (Ending Cash)
-              <TooltipIcon text="Area chart showing inception-to-date cumulative cash position." />
-            </h3>
+        <div className="glass-card rounded-2xl p-8 border border-white/5 shadow-2xl relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-50 rounded-t-2xl" />
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                Liquidity Position
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">Cash flow and treasury runway</p>
+            </div>
+            <TooltipIcon text="Area gradient showing historical vs projected cash on hand." />
           </div>
-          <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={summary} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <div className="h-[300px] w-full min-h-0 min-w-0">
+            <ResponsiveContainer width="99%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <linearGradient id="colorCashActual" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorCashForecast" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.15} />
                 <XAxis
                   dataKey="period"
-                  stroke="#94a3b8"
-                  fontSize={11}
+                  stroke="#64748b"
+                  fontSize={10}
+                  fontWeight={600}
                   tickLine={false}
                   axisLine={false}
                   tick={{ dy: 10 }}
                 />
                 <YAxis
-                  stroke="#94a3b8"
-                  fontSize={11}
+                  stroke="#64748b"
+                  fontSize={10}
+                  fontWeight={600}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(val) => `$${(val / 100000).toFixed(0)}k`}
                 />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.4)', padding: '12px' }}
-                  itemStyle={{ fontSize: '12px', padding: '2px 0' }}
-                  formatter={(val: number | string | (number | string)[] | undefined) => formatCurrency(Number(val ?? 0))}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const type = payload[0].payload.type;
+                      return (
+                        <div className="bg-slate-950/90 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-4 min-w-[200px]">
+                          <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                            <p className="text-sm font-black text-white uppercase tracking-tighter">{label}</p>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${type === 'actual' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'}`}>
+                              {type}
+                            </span>
+                          </div>
+                          {payload.filter(p => p.value !== null).map((entry, index) => {
+                            // Smart-hide forecasted duplicate at the bridge point
+                            const isForecastDuplicate = entry.name?.toString().includes("Forecast") && 
+                                                        payload.some(p => p.value !== null && p.name === entry.name?.toString().replace(" (Forecast)", ""));
+                            if (isForecastDuplicate) return null;
+
+                            return (
+                              <div key={index} className="flex items-center justify-between py-1.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                  <span className="text-[11px] font-medium text-slate-400">Ending Cash</span>
+                                </div>
+                                <span className="text-[11px] font-mono font-bold text-white">{formatCurrency(Number(entry.value))}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
+                {nowPeriod && (
+                  <ReferenceLine x={nowPeriod} stroke="#64748b" strokeDasharray="3 3" label={{ position: 'top', value: 'NOW', fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} />
+                )}
                 <Area
+                  name="Cash"
                   type="monotone"
-                  dataKey="cash"
+                  dataKey="cashActual"
                   stroke="#10b981"
                   fillOpacity={1}
-                  fill="url(#colorCash)"
-                  strokeWidth={3}
-                  animationDuration={1500}
+                  fill="url(#colorCashActual)"
+                  strokeWidth={4}
+                  filter="url(#glow)"
+                  connectNulls={false}
+                />
+                <Area
+                  name="Cash (Forecast)"
+                  type="monotone"
+                  dataKey="cashForecast"
+                  stroke="#10b981"
+                  strokeDasharray="8 6"
+                  fillOpacity={1}
+                  fill="url(#colorCashForecast)"
+                  strokeWidth={2}
+                  connectNulls={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -228,12 +393,14 @@ function KPICard({ title, value, subtitle, icon }: { title: string, value: strin
 
 function TooltipIcon({ text }: { text: string }) {
   return (
-    <div className="group relative">
-      <Info className="w-4 h-4 text-muted-foreground cursor-help hover:text-primary transition-colors" />
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-[10px] text-slate-200 rounded border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-        {text}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800" />
+    <div className="group relative flex items-center">
+      <div className="absolute right-full mr-3 w-56 p-3 bg-slate-900/95 border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-all duration-300 opacity-0 scale-95 origin-right translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 invisible group-hover:visible pointer-events-none z-50 backdrop-blur-xl">
+        <p className="text-[10px] leading-relaxed text-slate-300 font-medium">
+           {text}
+        </p>
+        <div className="absolute left-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-l-slate-900/95" />
       </div>
+      <Info className="w-4 h-4 text-slate-500 cursor-help hover:text-primary transition-all duration-300" />
     </div>
   );
 }

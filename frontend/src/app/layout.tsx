@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   description: "Advanced financial statement aggregation and mapping",
 };
 
+import { TitleBar } from "@/components/layout/TitleBar";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -18,14 +20,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen antialiased flex flex-col md:flex-row h-screen overflow-hidden`}>
+      <body className={`${inter.className} min-h-screen antialiased flex flex-col h-screen overflow-hidden bg-slate-950`}>
         <Providers>
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto p-8 relative">
-            <div className="max-w-7xl mx-auto h-full">
-              {children}
-            </div>
-          </main>
+          <TitleBar />
+          <div className="flex flex-1 flex-col md:flex-row h-full overflow-hidden pt-8">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto p-8 relative">
+              <div className="max-w-7xl mx-auto h-full">
+                {children}
+              </div>
+            </main>
+          </div>
         </Providers>
       </body>
     </html>

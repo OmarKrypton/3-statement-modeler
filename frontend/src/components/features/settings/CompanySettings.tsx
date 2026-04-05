@@ -4,6 +4,40 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCompanies, updateCompany } from "@/lib/api";
 import { Save, Building2, Calendar, Globe } from "lucide-react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+
+const MONTHS = [
+    { value: "1", label: "January" },
+    { value: "2", label: "February" },
+    { value: "3", label: "March" },
+    { value: "4", label: "April" },
+    { value: "5", label: "May" },
+    { value: "6", label: "June" },
+    { value: "7", label: "July" },
+    { value: "8", label: "August" },
+    { value: "9", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+];
+
+const CURRENCIES = [
+    { value: "USD", label: "USD - US Dollar" },
+    { value: "EUR", label: "EUR - Euro" },
+    { value: "GBP", label: "GBP - British Pound" },
+    { value: "JPY", label: "JPY - Japanese Yen" },
+    { value: "CAD", label: "CAD - Canadian Dollar" },
+    { value: "AUD", label: "AUD - Australian Dollar" },
+    { value: "CHF", label: "CHF - Swiss Franc" },
+    { value: "CNY", label: "CNY - Chinese Yuan" },
+    { value: "AED", label: "AED - UAE Dirham" },
+    { value: "SAR", label: "SAR - Saudi Riyal" },
+    { value: "EGP", label: "EGP - Egyptian Pound" },
+    { value: "HKD", label: "HKD - Hong Kong Dollar" },
+    { value: "INR", label: "INR - Indian Rupee" },
+    { value: "SGD", label: "SGD - Singapore Dollar" },
+    { value: "MXN", label: "MXN - Mexican Peso" },
+];
 
 // Hardcoded for demo as in other components
 const ACME_CORP_ID = "6921efce-4ef6-418f-b454-7699ba440600";
@@ -65,37 +99,29 @@ export function CompanySettings() {
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1.5 flex items-center">
-                        <Calendar className="h-4 w-4 mr-2" /> Fiscal Year End (Month)
+                <div className="flex flex-col gap-2">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center">
+                        <Calendar className="h-3 w-3 mr-2" /> Fiscal Year End (Month)
                     </label>
-                    <select
-                        value={form.fiscal_year_end}
-                        onChange={(e) => setForm({ ...form, fiscal_year_end: parseInt(e.target.value) })}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all appearance-none"
-                    >
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                            <option key={month} value={month}>
-                                {new Date(2000, month - 1).toLocaleString('default', { month: 'long' })}
-                            </option>
-                        ))}
-                    </select>
+                    <CustomSelect
+                        options={MONTHS}
+                        value={form.fiscal_year_end.toString()}
+                        onChange={(val) => setForm({ ...form, fiscal_year_end: parseInt(val) })}
+                        placeholder="Select Month..."
+                        searchable={false}
+                    />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1.5 flex items-center">
-                        <Globe className="h-4 w-4 mr-2" /> Reporting Currency
+                <div className="flex flex-col gap-2">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center">
+                        <Globe className="h-3 w-3 mr-2" /> Reporting Currency
                     </label>
-                    <select
+                    <CustomSelect
+                        options={CURRENCIES}
                         value={form.currency}
-                        onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all appearance-none"
-                    >
-                        <option value="USD">USD - US Dollar</option>
-                        <option value="EUR">EUR - Euro</option>
-                        <option value="GBP">GBP - British Pound</option>
-                        <option value="CAD">CAD - Canadian Dollar</option>
-                    </select>
+                        onChange={(val) => setForm({ ...form, currency: val })}
+                        placeholder="Select Currency..."
+                    />
                 </div>
             </div>
 
