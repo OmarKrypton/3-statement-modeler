@@ -29,8 +29,8 @@ tauri/src-tauri/icons/
 tauri/src-tauri/.tauri/
 
 # ── Arch Linux Packaging ──────────────────────────────────────────────────────
-pkg/
-src/
+/pkg/
+/src/
 *.pkg.tar.zst
 3-statement-modeler-*.pkg.tar.zst
 
