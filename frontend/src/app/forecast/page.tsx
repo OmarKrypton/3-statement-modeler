@@ -16,7 +16,7 @@ import {
 } from "@/lib/api";
 import { TrendingUp, Save, Play, ChevronDown, ChevronRight, AlertCircle, Share, Loader2, RotateCcw, Plus, Minus, Trash2 } from "lucide-react";
 import ExportModal from "@/components/features/export/ExportModal";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getCurrencySymbol } from "@/lib/utils";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { downloadFile } from "@/lib/download";
 
@@ -78,7 +78,7 @@ function CentsInput({
                         <Minus className="w-3 h-3" />
                     </button>
                     <div className="flex items-center w-full px-3">
-                        <span className="text-muted-foreground/50 text-xs mr-1">{currency === "USD" ? "$" : currency}</span>
+                        <span className="text-muted-foreground/50 text-xs mr-1">{getCurrencySymbol(currency)}</span>
                         <input
                             type="number"
                             step="1000"
@@ -357,7 +357,7 @@ export default function ForecastPage() {
             const val = cents / 100;
             const formatted = new Intl.NumberFormat("en-US", {
                 style: "currency",
-                currency: "USD",
+                currency: currency,
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0,
             }).format(Math.abs(val));
@@ -741,15 +741,15 @@ export default function ForecastPage() {
                                     <div key={p.period} className="glass-card rounded-xl border border-border p-4 flex flex-col gap-2">
                                         <p className="text-xs text-primary font-mono">{p.period}</p>
                                         <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Revenue</p>
-                                        <p className="font-mono font-bold text-foreground">{formatCurrency(p.revenue_cents)}</p>
+                                        <p className="font-mono font-bold text-foreground">{formatCurrency(p.revenue_cents, currency)}</p>
                                         <hr className="border-border/50" />
                                         <div className="flex justify-between text-xs">
                                             <span className="text-muted-foreground">Net Income</span>
-                                            <span className={`font-mono ${p.net_income_cents >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{formatCurrency(p.net_income_cents)}</span>
+                                            <span className={`font-mono ${p.net_income_cents >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{formatCurrency(p.net_income_cents, currency)}</span>
                                         </div>
                                         <div className="flex justify-between text-xs">
                                             <span className="text-muted-foreground">Ending Cash</span>
-                                            <span className="font-mono text-foreground">{formatCurrency(p.ending_cash_cents)}</span>
+                                            <span className="font-mono text-foreground">{formatCurrency(p.ending_cash_cents, currency)}</span>
                                         </div>
                                     </div>
                                 ))}

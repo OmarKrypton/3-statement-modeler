@@ -7,7 +7,7 @@ import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar, Line, Cell, ReferenceLine
 } from "recharts";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, getCurrencySymbol, cn } from "@/lib/utils";
 import {
   TrendingUp, TrendingDown, DollarSign, Activity,
   ArrowRight, FileSpreadsheet, ListTree, PieChart,
@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const [scenario, setScenario] = useState<"base" | "bull" | "bear">("base");
 
   const { data: summary, isLoading } = useQuery<DashboardSummaryEntry[]>({
-    queryKey: ["dashboard-summary", company?.id, scenario, currency],
+    queryKey: ["dashboard-summary", company?.id, scenario],
     queryFn: () => getDashboardSummary(company!.id, scenario),
     enabled: !!company?.id
   });
@@ -188,7 +188,7 @@ export default function DashboardPage() {
                   fontWeight={600}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(val) => `$${(val / 100000).toFixed(0)}k`}
+                  tickFormatter={(val) => `${getCurrencySymbol(currency)}${(val / 100000).toFixed(0)}k`}
                 />
                 <Tooltip
                   content={({ active, payload, label }) => {
@@ -307,7 +307,7 @@ export default function DashboardPage() {
                   fontWeight={600}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(val) => `$${(val / 100000).toFixed(0)}k`}
+                  tickFormatter={(val) => `${getCurrencySymbol(currency)}${(val / 100000).toFixed(0)}k`}
                 />
                 <Tooltip
                   content={({ active, payload, label }) => {

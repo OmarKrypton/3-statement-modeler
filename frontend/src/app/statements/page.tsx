@@ -395,7 +395,7 @@ export default function StatementsPage() {
                                             <tr className="bg-accent/5 border-t border-accent/20">
                                                 <td className="py-5 px-6 font-bold text-accent-foreground text-base">Total Liab + Equity</td>
                                                 {balanceSheet?.map(s => (
-                                                    <td key={s.period} className="py-5 px-6 text-right font-mono font-bold text-accent-foreground text-base">{formatCurrency(s.total_liabilities_cents + s.total_equity_cents)}</td>
+                                                    <td key={s.period} className="py-5 px-6 text-right font-mono font-bold text-accent-foreground text-base">{formatCurrency(s.total_liabilities_cents + s.total_equity_cents, currency)}</td>
                                                 ))}
                                             </tr>
                                         </tbody>
@@ -461,13 +461,13 @@ export default function StatementsPage() {
                                         <tr className="hover:bg-white/5 transition-colors">
                                             <td className="py-3 px-6 text-foreground">Depreciation & Non-Cash</td>
                                             {cashFlow?.map(s => (
-                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.non_cash_adjustments_cents)}</td>
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.non_cash_adjustments_cents, currency)}</td>
                                             ))}
                                         </tr>
                                         <tr className="hover:bg-white/5 transition-colors">
                                             <td className="py-3 px-6 text-foreground">Changes in Working Capital</td>
                                             {cashFlow?.map(s => (
-                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.operating_wc_delta_cents)}</td>
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono">{formatCurrency(s.operating_wc_delta_cents, currency)}</td>
                                             ))}
                                         </tr>
                                         <tr className="bg-emerald-500/5">
@@ -496,13 +496,13 @@ export default function StatementsPage() {
                                         <tr className="bg-emerald-500/10 border-t-2 border-emerald-500/30">
                                             <td className="py-4 px-6 font-bold text-emerald-400 uppercase tracking-wider text-xs">Net Change in Cash</td>
                                             {cashFlow?.map(s => (
-                                                <td key={s.period} className="py-4 px-6 text-right font-mono font-bold text-emerald-400">{formatCurrency(s.net_change_in_cash_cents)}</td>
+                                                <td key={s.period} className="py-4 px-6 text-right font-mono font-bold text-emerald-400">{formatCurrency(s.net_change_in_cash_cents, currency)}</td>
                                             ))}
                                         </tr>
                                         <tr className="hover:bg-white/5 transition-colors">
                                             <td className="py-3 px-6 text-muted-foreground uppercase tracking-wider text-xs font-semibold">Beginning Cash Balance</td>
                                             {cashFlow?.map(s => (
-                                                <td key={s.period} className="py-3 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.beginning_cash_cents)}</td>
+                                                <td key={s.period} className="py-3 px-6 text-right font-mono text-muted-foreground">{formatCurrency(s.beginning_cash_cents, currency)}</td>
                                             ))}
                                         </tr>
                                         <tr className="bg-emerald-500/20 border-t border-emerald-500/40">
